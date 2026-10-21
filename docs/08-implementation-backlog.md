@@ -20,6 +20,7 @@ Story ID key: `FND` foundations · `AUTH` auth/routing · `PUB` public directory
 | FND-2 | Secret management + provider sandbox accounts | Zero secrets in repo/client; sandbox keys in Secret Manager | FND-1 |
 | FND-3 | Structured logging + alerting baseline | Auth/payment/transition logs queryable; webhook-failure alert fires in staging | FND-1 |
 | FND-4 | Owner-decision workshop + decision log | OD-01…OD-12 resolved or formally deferred with defaults (see `09-owner-decisions.md`) | — (blocks exits) |
+| FND-5 | Marketplace/visual reference study + original TechFix design tokens (PRD §1.4) | Study notes trace each adopted pattern to PRD §1.4.1/§1.4.2 with re-verified observations; original color/type/spacing tokens with WCAG-AA contrast evidence; zero copied branding, copy, images, or code; fixtures contain no invented business info, real artisan records, testimonials, or credentials | — (consumed by PUB-3, ONB-2, BOK-1) |
 
 ## Epic 2 — Auth, roles & route protection (Phase 1)
 

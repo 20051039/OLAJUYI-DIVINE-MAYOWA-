@@ -1,7 +1,9 @@
 # TECHFIX.NG — Product Requirements Document (PRD)
 
-**Version:** 2.0 (Revised — Authenticated Booking, Mandatory Verification & Guarantor Requirements)
+**Version:** 2.1 (v2.0 + §1.4 marketplace & design references)
 **Date:** 2026-10-21
+**Changelog (2.1):** Added §1.4 (Worker.NG functional reference, HopeRise visual inspiration) + synthetic-content
+guardrail. No business-policy changes; all [OWNER DECISION] items remain unresolved.
 **Status:** DRAFT — pending owner review and approval. **No application code is to be written until these documents are reviewed and approved.**
 **Related documents:**
 
@@ -58,6 +60,56 @@ local artisans (e.g., electricians, plumbers, carpenters, tailors, mechanics, pa
 | BR-5 | Uploading a document is **not** proof of genuineness; verification requires authorized human review unless an approved verification service is integrated (none is integrated in MVP). |
 | BR-6 | No artisan is presented as certified/licensed/verified beyond what has actually been checked. |
 | BR-7 | Guarantors are **not** automatically assumed legally liable for an artisan's conduct or debts. |
+
+### 1.4 Marketplace & visual-design references
+
+**Status:** directional inspiration only. These references inform UX patterns and visual direction; they **decide no
+business policy** — every [OWNER DECISION] item stays unresolved until the owner approves it. TechFix.ng keeps its own
+name, branding, copy, and assets: **do not copy branding, logos, images, text, or code** from either source, and do not
+assert features beyond what was directly observed (observations below verified 2026-10-21; re-verify during design).
+
+#### 1.4.1 Functional marketplace reference: Worker.NG (https://worker.ng/)
+
+Worker.NG is a live Nigerian artisan-discovery marketplace and the functional reference for TechFix.ng's **public
+discovery experience only**. Study and adapt these observed patterns:
+
+1. **Three-field discovery search** — Skill + State + dependent LGA selectors, with popular-skill shortcuts.
+2. **Location-first browsing** — state index with artisan counts drilling down to LGA; optional "near you"
+   geolocation with an explicit purpose notice (implement per the privacy plan: permission + purpose + minimization).
+3. **Artisan result cards** — photo, trade label, name+location headline, service tags, recency/status badge.
+   TechFix adapts this with verification badges derived **only** from actually-checked credentials (BR-6).
+4. **For-artisans acquisition section** — value props + call-to-action, adapted to TechFix's verified pipeline
+   (must state verification + administrator approval + the ₦3,000 fee; must never promise instant listing).
+5. **SEO-friendly directory structure** — stable skill / artisan / location URL families (TechFix defines its own
+   routes; see `docs/03-architecture.md`).
+6. **Plain-language positioning** — direct "real profiles, compare the work, then contact" tone (write original
+   TechFix copy).
+
+**Explicitly do NOT carry over:** same-day/instant listing, free-listing positioning (TechFix charges the confirmed
+one-time ₦3,000 fee, BR-1), or any visibility model that bypasses verification and administrator approval
+(BR-2, publication rule §3.8).
+
+#### 1.4.2 Visual design inspiration: "HopeRise — Charity Landing Page" (Dribbble, by Phenomenon Labs for Phenomenon Studio)
+
+Link: https://dribbble.com/shots/26290772-HopeRise-Charity-Landing-Page-Design. This is a **concept design for a
+charity platform** — adapt its visual/UX principles only; its domain features (donations, patient stories) do not
+apply to TechFix.ng:
+
+1. **Mobile-first, thumb-friendly layouts** with quick load times (aligns with the responsive-web MVP, NFR-3/NFR-5).
+2. **Warm, calm visual direction** — the reference uses warm neutrals, deep espresso tones, and a green accent
+   (exact palette is shown on the shot page for inspiration; derive **original, WCAG-AA-verified** TechFix design
+   tokens — do not lift the palette wholesale or reuse any artwork).
+3. **Simple stepped forms** — pre-set choices plus custom input, one clear action per step, immediate feedback and
+   confirmation states (apply to booking, onboarding, and payment flows).
+4. **Real-time progress indicators plus confirmation/tracking** (apply to the 11-step artisan tracker and booking
+   status timelines).
+5. **Human-centered profile pages** — public artisan profiles should feel personal and trustworthy through original
+   copy, approved photos, and honest verification badges.
+
+**Synthetic-content guardrail:** seed, demo, and fixture content must be clearly labeled synthetic fixtures. Neither
+the product nor these documents require or permit invented business information, real artisan records, testimonials,
+or credentials — and per BR-6 no artisan is ever presented as certified, reviewed, or rated on the basis of anything
+other than genuinely checked records and genuine user actions.
 
 ---
 

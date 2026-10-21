@@ -1,6 +1,9 @@
 # TECHFIX.NG — Revision Summary (v2.0): Changes, Conflicts & Remaining Decisions
 
 **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Addendum (v2.1):** PRD gained §1.4 (Worker.NG functional reference + HopeRise visual inspiration, with guardrails:
+no copied branding/assets, no unverified claims, no invented testimonials/records/credentials) and the backlog gained
+FND-5 (reference study + original design tokens). No business policies were decided; OD-01…OD-12 remain unresolved.
 **Instruction honored:** documentation updated; **no application code written.**
 
 ---

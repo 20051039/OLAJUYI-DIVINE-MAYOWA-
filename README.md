@@ -4,7 +4,7 @@ Product requirements, MVP roadmap, architecture, data design, user flows, securi
 test plan, backlog, and owner-decision register for **TechFix.ng**, a Nigerian artisan
 directory and booking marketplace.
 
-> **Status: DRAFT v2.0 (2026-10-21)** — pending owner review and approval.
+> **Status: DRAFT v2.1 (2026-10-21)** — pending owner review and approval. v2.1 adds PRD §1.4 marketplace/design references + backlog story FND-5; no business-policy changes.
 > **No application code is to be written until these documents are reviewed and approved.**
 
 ## Document index
