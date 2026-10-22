@@ -1,0 +1,1733 @@
+diff --git a/README.md b/README.md
+index 2f85502..37037b6 100644
+--- a/README.md
++++ b/README.md
+@@ -1 +1,30 @@
+-# OLAJUYI-DIVINE-MAYOWA-
++# TechFix.ng — Planning Documents
++
++Product requirements, MVP roadmap, architecture, data design, user flows, security plan,
++test plan, backlog, and owner-decision register for **TechFix.ng**, a Nigerian artisan
++directory and booking marketplace.
++
++> **Status: DRAFT v2.1 (2026-10-21)** — pending owner review and approval. v2.1 adds PRD §1.4 marketplace/design references + backlog story FND-5; no business-policy changes.
++> **No application code is to be written until these documents are reviewed and approved.**
++
++## Document index
++
++| Doc | Contents |
++|-----|----------|
++| `docs/01-PRD.md` | Product Requirements Document — goals, roles, functional requirements (authenticated booking, ID verification, additional evidence, guarantor, 11-step workflow, payments, publication rule), NFRs |
++| `docs/02-mvp-roadmap.md` | MVP definition, 9 launch gates, phased plan (0–7), decision dependencies |
++| `docs/03-architecture.md` | System, authentication, and route-protection architecture; ADRs |
++| `docs/04-database-schema.md` | Firestore collections, status state machines, Cloud Storage layout, validation rules |
++| `docs/05-user-flows.md` | Visitor, customer, artisan (11-step), and administrator journeys |
++| `docs/06-security-privacy-plan.md` | Threat model, rules strategies, access control, retention schedule, NDPA confirmation questions |
++| `docs/07-test-plan.md` | 16 required acceptance tests with expected results + supporting suites |
++| `docs/08-implementation-backlog.md` | 13 epics / ~50 stories with acceptance criteria, dependencies, Definition of Done |
++| `docs/09-owner-decisions.md` | 12 unresolved owner decisions (OD-01…OD-12) — no invented answers |
++| `docs/10-revision-summary.md` | Summary of changes, conflicts identified, remaining decisions, next steps |
++
++## Preserved business rules
++
++- One-time **₦3,000** artisan registration fee (server-verified).
++- **Mandatory administrator approval** before any public visibility.
++- **No customer booking without authentication** (public browsing needs no account).
++- Upload ≠ genuineness · no unchecked certification claims · no assumed guarantor liability.
+diff --git a/docs/01-PRD.md b/docs/01-PRD.md
+new file mode 100644
+index 0000000..88605b7
+--- /dev/null
++++ b/docs/01-PRD.md
+@@ -0,0 +1,362 @@
++# TECHFIX.NG — Product Requirements Document (PRD)
++
++**Version:** 2.1 (v2.0 + §1.4 marketplace & design references)
++**Date:** 2026-10-21
++**Changelog (2.1):** Added §1.4 (Worker.NG functional reference, HopeRise visual inspiration) + synthetic-content
++guardrail. No business-policy changes; all [OWNER DECISION] items remain unresolved.
++**Status:** DRAFT — pending owner review and approval. **No application code is to be written until these documents are reviewed and approved.**
++**Related documents:**
++
++- `docs/02-mvp-roadmap.md` — MVP scope, phases, launch gates
++- `docs/03-architecture.md` — system, auth, and route-protection architecture
++- `docs/04-database-schema.md` — Firestore data model & Cloud Storage layout
++- `docs/05-user-flows.md` — customer, artisan, and administrator journeys
++- `docs/06-security-privacy-plan.md` — threat model, rules strategy, retention
++- `docs/07-test-plan.md` — acceptance tests incl. the 16 required tests
++- `docs/08-implementation-backlog.md` — epics, stories, acceptance criteria, DoD
++- `docs/09-owner-decisions.md` — unresolved decisions requiring owner input
++- `docs/10-revision-summary.md` — summary of changes, conflicts, remaining decisions
++
++> **Convention used in this document set:** anything marked **[OWNER DECISION]** is an unresolved
++> business/policy question listed in `docs/09-owner-decisions.md`. Anything marked **[PROPOSED]**
++> is a recommendation that stands unless the owner overrides it. Nothing in these documents invents
++> answers to owner decisions.
++
++---
++
++## 1. Product Overview
++
++**TechFix.ng** is a Nigerian online directory and booking marketplace that connects customers with
++local artisans (e.g., electricians, plumbers, carpenters, tailors, mechanics, painters, tilers).
++
++### 1.1 Product goals
++
++1. Let anyone **browse publicly approved artisan profiles** without creating an account.
++2. Let **registered, authenticated customers** book approved artisans and track booking history/status.
++3. Onboard artisans through a **verified pipeline**: account → profile → identity verification →
++   supporting verification → guarantor → registration fee → administrator review → approval.
++4. Ensure **only fully compliant artisans** (verified payment, approved identity and required
++   verification, administrator approval, no suspension/restrictions) appear in public listings.
++5. Protect sensitive personal data (identity documents, identity numbers, guarantor details) with
++   private storage, restricted access, audit trails, and proportionate retention.
++
++### 1.2 Non-goals (MVP)
++
++- Automated identity verification (no verification-service integration is claimed or assumed).
++- In-app payments from customers to artisans; customer-to-artisan pricing/escrow.
++- Instant messaging beyond booking-linked contact disclosure rules **[OWNER DECISION: what contact
++  details a customer sees after booking — see §9]**.
++- Native mobile apps (MVP is a responsive web app).
++- Multi-country support; Nigeria only.
++
++### 1.3 Previously confirmed business rules (preserved)
++
++| ID | Rule |
++|----|------|
++| BR-1 | Artisan registration carries a **one-time ₦3,000 registration fee**, verified server-side through the approved payment provider. |
++| BR-2 | **Mandatory administrator approval**: no artisan profile is publicly visible without admin approval. |
++| BR-3 | **No customer booking without authentication**: customers must register and log in before submitting a booking. |
++| BR-4 | Public browsing of approved artisan profiles requires no account. |
++| BR-5 | Uploading a document is **not** proof of genuineness; verification requires authorized human review unless an approved verification service is integrated (none is integrated in MVP). |
++| BR-6 | No artisan is presented as certified/licensed/verified beyond what has actually been checked. |
++| BR-7 | Guarantors are **not** automatically assumed legally liable for an artisan's conduct or debts. |
++
++### 1.4 Marketplace & visual-design references
++
++**Status:** directional inspiration only. These references inform UX patterns and visual direction; they **decide no
++business policy** — every [OWNER DECISION] item stays unresolved until the owner approves it. TechFix.ng keeps its own
++name, branding, copy, and assets: **do not copy branding, logos, images, text, or code** from either source, and do not
++assert features beyond what was directly observed (observations below verified 2026-10-21; re-verify during design).
++
++#### 1.4.1 Functional marketplace reference: Worker.NG (https://worker.ng/)
++
++Worker.NG is a live Nigerian artisan-discovery marketplace and the functional reference for TechFix.ng's **public
++discovery experience only**. Study and adapt these observed patterns:
++
++1. **Three-field discovery search** — Skill + State + dependent LGA selectors, with popular-skill shortcuts.
++2. **Location-first browsing** — state index with artisan counts drilling down to LGA; optional "near you"
++   geolocation with an explicit purpose notice (implement per the privacy plan: permission + purpose + minimization).
++3. **Artisan result cards** — photo, trade label, name+location headline, service tags, recency/status badge.
++   TechFix adapts this with verification badges derived **only** from actually-checked credentials (BR-6).
++4. **For-artisans acquisition section** — value props + call-to-action, adapted to TechFix's verified pipeline
++   (must state verification + administrator approval + the ₦3,000 fee; must never promise instant listing).
++5. **SEO-friendly directory structure** — stable skill / artisan / location URL families (TechFix defines its own
++   routes; see `docs/03-architecture.md`).
++6. **Plain-language positioning** — direct "real profiles, compare the work, then contact" tone (write original
++   TechFix copy).
++
++**Explicitly do NOT carry over:** same-day/instant listing, free-listing positioning (TechFix charges the confirmed
++one-time ₦3,000 fee, BR-1), or any visibility model that bypasses verification and administrator approval
++(BR-2, publication rule §3.8).
++
++#### 1.4.2 Visual design inspiration: "HopeRise — Charity Landing Page" (Dribbble, by Phenomenon Labs for Phenomenon Studio)
++
++Link: https://dribbble.com/shots/26290772-HopeRise-Charity-Landing-Page-Design. This is a **concept design for a
++charity platform** — adapt its visual/UX principles only; its domain features (donations, patient stories) do not
++apply to TechFix.ng:
++
++1. **Mobile-first, thumb-friendly layouts** with quick load times (aligns with the responsive-web MVP, NFR-3/NFR-5).
++2. **Warm, calm visual direction** — the reference uses warm neutrals, deep espresso tones, and a green accent
++   (exact palette is shown on the shot page for inspiration; derive **original, WCAG-AA-verified** TechFix design
++   tokens — do not lift the palette wholesale or reuse any artwork).
++3. **Simple stepped forms** — pre-set choices plus custom input, one clear action per step, immediate feedback and
++   confirmation states (apply to booking, onboarding, and payment flows).
++4. **Real-time progress indicators plus confirmation/tracking** (apply to the 11-step artisan tracker and booking
++   status timelines).
++5. **Human-centered profile pages** — public artisan profiles should feel personal and trustworthy through original
++   copy, approved photos, and honest verification badges.
++
++**Synthetic-content guardrail:** seed, demo, and fixture content must be clearly labeled synthetic fixtures. Neither
++the product nor these documents require or permit invented business information, real artisan records, testimonials,
++or credentials — and per BR-6 no artisan is ever presented as certified, reviewed, or rated on the basis of anything
++other than genuinely checked records and genuine user actions.
++
++---
++
++## 2. Users & Roles
++
++| Role | Description |
++|------|-------------|
++| Visitor (unauthenticated) | Browses/searches public artisan directory. Cannot book. |
++| Customer (authenticated) | Books artisans, views own booking history/status. Cannot see or modify another customer's bookings. |
++| Artisan (authenticated) | Registers, builds profile, submits verification materials, pays fee, receives bookings once approved. Cannot self-approve or self-publish. |
++| Administrator (authorized) | Reviews verification materials, records decisions, approves/rejects/requests information, suspends accounts, manages audit-sensitive actions. |
++
++Role assignment is enforced server-side (auth custom claims + Firestore rules + Cloud Functions).
++See `docs/03-architecture.md`.
++
++---
++
++## 3. Functional Requirements
++
++### 3.1 Public directory (visitors + all roles)
++
++- **FR-PUB-1:** Anyone may browse and search **publicly approved** artisan profiles without an account.
++- **FR-PUB-2:** Public profiles must contain only approved public fields (see `docs/04-database-schema.md`).
++  They must **never** contain identity documents, identity numbers, guarantor details, payment details,
++  review notes, or internal statuses.
++- **FR-PUB-3:** Public listings/search must exclude any artisan who does not satisfy **all** of:
++  verified payment + approved identity and required verification + administrator approval +
++  no suspension or other restrictions.
++- **FR-PUB-4:** Filter/search by trade, location (LGA/state), rating, availability **[PROPOSED]**.
++
++### 3.2 Customer accounts & authenticated booking (NEW — §1 of requirements update)
++
++- **FR-CUST-1:** Customers must create an account and log in before submitting a booking.
++- **FR-CUST-2:** An unauthenticated visitor who clicks **"Book Artisan"** is directed to login or
++  registration; after successful authentication they are returned to the intended artisan profile or
++  booking flow **where practical** (deep-link intent preserved, e.g. `?next=/artisans/{id}/book`).
++- **FR-CUST-3:** The server validates the authenticated customer's identity on every booking write
++  (auth token → UID; no client-supplied customer ID is trusted).
++- **FR-CUST-4:** Every booking is associated with exactly one customer account (`customerId = auth.uid`).
++- **FR-CUST-5:** Customers must not be able to read, modify, or cancel another customer's bookings
++  (enforced by Firestore security rules **and** server-side checks).
++- **FR-CUST-6:** Customers can view their **booking history** with per-booking **status**
++  (`pending | confirmed | completed | cancelled | declined` **[PROPOSED]**), timestamps, artisan
++  reference, and service details.
++- **FR-CUST-7:** Booking form validation (required fields, date/time sanity, service description
++  length limits) with clear inline errors; server re-validates everything.
++- **FR-CUST-8:** Error states: artisan unavailable/suspended mid-flow, network failure, session expiry
++  mid-booking (re-authenticate, preserve draft where practical).
++- **FR-CUST-9:** Customers can request correction or deletion of their personal information, subject to
++  applicable retention obligations (see `docs/06-security-privacy-plan.md`).
++
++### 3.3 Artisan registration & approval workflow (REVISED — 11-step sequence)
++
++The artisan journey **must** follow this order:
++
++1. Artisan creates an account.
++2. Artisan completes their professional profile.
++3. Artisan submits valid identity documentation (§3.4).
++4. Artisan provides the required additional verification information (§3.5).
++5. Artisan provides the required guarantor information and completes the approved consent process (§3.6).
++6. Artisan pays the one-time **₦3,000** registration fee.
++7. The server verifies the payment through the approved payment provider.
++8. The application and verification materials enter the administrator review process.
++9. The administrator reviews identity information, supporting evidence, guarantor requirements, and payment status.
++10. The administrator approves, rejects, or requests additional information per the approved policy.
++11. Only artisans satisfying **all** of §3.8 appear in public listings.
++
++Supporting rules:
++
++- **FR-ART-1:** The workflow must be designed so payment and verification can occur in an appropriate
++  order **without allowing an incomplete application to become publicly visible**. Payment completion
++  alone must never publish a profile.
++- **FR-ART-2:** If an application is **rejected**, the artisan is notified (in-app + email **[PROPOSED]**).
++  Whether corrections, resubmission, appeal, or refund are permitted is **[OWNER DECISION]** —
++  see `docs/09-owner-decisions.md` (OD-08, OD-09). The system must support recording the decision and
++  reason regardless of the final policy.
++- **FR-ART-3:** An artisan must not be able to publish their own profile before approval (no client-side
++  bypass; publication is a server-side/admin-only transition).
++- **FR-ART-4:** Suspended artisans must not be able to accept new bookings; existing bookings follow the
++  suspension policy **[OWNER DECISION: OD-12]**.
++
++### 3.4 Mandatory artisan identity verification (NEW)
++
++- **FR-IDV-1:** Every artisan must submit a valid identity document as part of registration. Registration
++  cannot proceed past step 3 without a submission that passes file validation.
++- **FR-IDV-2:** Provide a **secure identity-document upload interface**: authenticated session only,
++  direct-to-private-storage upload with short-lived credentials/URLs, progress + error states, no public URL.
++- **FR-IDV-3:** Permitted file types **[PROPOSED, pending file-policy confirmation as part of OD-01]**:
++  `image/jpeg`, `image/png`, `application/pdf` only. Maximum file size **[PROPOSED]**: 5 MB per file.
++  Validation: MIME sniffing (magic bytes) server-side, extension allowlist, size cap, malware posture per
++  `docs/06-security-privacy-plan.md`. Upload error handling: type/size/network/expired-session errors with
++  retry guidance; rejected files are never stored in public locations.
++- **FR-IDV-4:** Recommended identity-document options for the Nigerian market **[PROPOSED — final accepted
++  document types require owner approval (OD-01)]**:
++  1. National Identification Number (NIN) slip / NIN card issued by NIMC;
++  2. Voter's card (PVC) issued by INEC;
++  3. Valid Nigerian driver's licence (FRSC);
++  4. Nigerian international passport (NIS).
++  The UI presents whatever set the owner approves — no other documents are accepted.
++- **FR-IDV-5:** Collect **only** the personal information necessary for the approved verification process:
++  document type, document reference/number (stored privately, never on public profiles), full name as on
++  document, expiry where applicable, and the file itself. No additional fields without approval.
++- **FR-IDV-6:** Record the document's verification status **separately** from payment and account-approval
++  status: `identityVerificationStatus ∈ {not_submitted, pending_review, verified, rejected, resubmission_required}`.
++- **FR-IDV-7:** Authorized administrators review submissions and record a verification decision with notes
++  and timestamp (audit-logged).
++- **FR-IDV-8:** Identity documents and identity numbers are **never** exposed on public artisan profiles,
++  in public APIs, or to other artisans/customers.
++- **FR-IDV-9:** Artisans cannot approve their own documents (status transitions to `verified`/`rejected`
++  are admin-only, server-enforced).
++- **FR-IDV-10:** The product must not claim automated identity verification exists unless an actual,
++  approved verification service is integrated. MVP assumes **manual admin review only**.
++  Whether verification stays manual or uses an external provider is **[OWNER DECISION: OD-02]**.
++
++### 3.5 Additional artisan verification (NEW)
++
++- **FR-ADD-1:** Artisans must provide additional information/evidence supporting verification and
++  professional credibility. The system evaluates/supports these evidence types:
++  - (a) Trade or professional qualifications, where applicable;
++  - (b) Relevant licences or certifications, where applicable;
++  - (c) Work portfolio photographs;
++  - (d) Work experience and references;
++  - (e) Additional evidence requested by an authorized administrator.
++- **FR-ADD-2:** The product **separates mandatory requirements from optional or trade-specific evidence**
++  (matrix in §3.5.1). It must not assume every artisan holds a formal qualification or licence.
++- **FR-ADD-3:** An artisan must not be presented as professionally certified unless the relevant
++  credential has actually been checked (profile badges derive only from verified records).
++- **FR-ADD-4:** Final per-trade mandatory/optional policy is **[OWNER DECISION: OD-03]**.
++
++#### 3.5.1 Proposed evidence matrix (all cells [PROPOSED], final policy OD-03)
++
++| Evidence | Electrician | Plumber | Carpenter | Tailor | Mechanic | Painter | Tiler | Other trades |
++|---|---|---|---|---|---|---|---|---|
++| Portfolio photos (min 3) | M | M | M | M | M | M | M | M |
++| Work experience statement | M | M | M | M | M | M | M | M |
++| Trade qualification (where exists) | T | T | O | O | T | O | O | T/O |
++| Licence/certification (where exists) | T | T | O | O | O | O | O | T/O |
++| References (≥1 contactable) | M | M | M | O | M | O | O | [DECIDE] |
++| Admin-requested extras | C | C | C | C | C | C | C | C |
++
++`M` = mandatory for all · `T` = mandatory only where that trade has a recognized credential ·
++`O` = optional · `C` = conditional on admin request. The admin can always request additional evidence
++(type (e) above) for any trade.
++
++### 3.6 Mandatory guarantor requirement (NEW)
++
++- **FR-GUA-1:** Every artisan must provide a guarantor as part of registration/verification. The workflow
++  collects, as **proposed requirements pending final guarantor-policy confirmation**:
++  full name, contact telephone number, relationship to the artisan, and any additional information approved
++  as necessary (e.g. home address — **[OWNER DECISION: OD-04]**).
++- **FR-GUA-2:** The system records **guarantor verification status** separately:
++  `guarantorVerificationStatus ∈ {not_submitted, pending_review, contacted_pending, verified, rejected, resubmission_required}` **[PROPOSED]**,
++  plus whether the guarantor has been contacted/verified, by whom, when, and admin review notes.
++- **FR-GUA-3:** **Consent workflow (approved process required before any contact):**
++  1. The artisan confirms they have obtained the guarantor's informed consent before submitting the
++     guarantor's personal information (in-app declaration + timestamp recorded).
++  2. Whether the guarantor must **independently confirm** consent/identity (e.g. OTP to guarantor's phone,
++     signed declaration upload) is **[OWNER DECISION: OD-05, OD-06]** — the data model supports both.
++  3. The platform must not contact a guarantor or send them personal information without following the
++     approved process once the owner confirms it.
++- **FR-GUA-4:** Guarantor information is restricted to authorized personnel who need it for verification
++  (role-based access + audit logging). It is **never** displayed on public artisan profiles.
++- **FR-GUA-5:** The system must not represent a guarantor as legally liable. Any guarantor agreement,
++  liability terms, or legal declarations require **qualified legal review before implementation**
++  (tracked as OD-04/OD-06 blockers; MVP ships with consent + verification records only, no liability language).
++- **FR-GUA-6:** Guarantor eligibility criteria (e.g. age, relationship exclusions, one-guarantor-per-artisan
++  limits) are **[OWNER DECISION: OD-04]**. Data model supports storing criteria outcomes once defined.
++
++### 3.7 Payments (preserved + clarified)
++
++- **FR-PAY-1:** One-time **₦3,000** artisan registration fee, payable in-app via the approved provider.
++- **FR-PAY-2:** Payment provider **[OWNER DECISION: OD-07]** — Paystack and Flutterwave are shortlisted
++  **[PROPOSED]**; the server verifies every payment via provider webhook/API before recording
++  `paymentStatus = verified`. Client-side success callbacks are never trusted.
++- **FR-PAY-3:** `paymentStatus ∈ {unpaid, pending, verified, failed, refunded}` is recorded **separately**
++  from identity, guarantor, and account-approval states.
++- **FR-PAY-4:** Whether any verification fees exist beyond the ₦3,000 fee is **[OWNER DECISION: OD-07]**.
++  The MVP assumes none.
++- **FR-PAY-5:** Refund handling (eligibility, window, method) is **[OWNER DECISION: OD-09]**; the data model
++  and admin console support recording refunds once policy is set.
++
++### 3.8 Publication rule (single source of truth)
++
++An artisan appears in public listings/search **if and only if all** of the following hold:
++
++```
++paymentStatus == "verified"
++AND identityVerificationStatus == "verified"
++AND additionalVerificationStatus == "approved"        // per-trade required evidence satisfied
++AND guarantorVerificationStatus == "verified"
++AND accountApprovalStatus == "approved"               // admin final approval
++AND suspended == false
++AND profileComplete == true
++```
++
++Publication is computed/enforced server-side (`isPubliclyVisible` maintained by trusted code only).
++Any transition that breaks the conjunction must remove the artisan from public results immediately.
++
++### 3.9 Administration
++
++- **FR-ADM-1:** Admin queue of applications with filters by status (pending identity review, pending guarantor
++  review, pending final approval, resubmission, rejected, suspended).
++- **FR-ADM-2:** Admins can view private materials (least-privilege, audit-logged), record decisions with
++  mandatory reason codes/notes, and trigger artisan notifications.
++- **FR-ADM-3:** Server-side authorization on all review operations; admins cannot be self-appointed
++  (bootstrap/grant procedure in `docs/06-security-privacy-plan.md`).
++- **FR-ADM-4:** Suspension/unsuspension with reason; suspended artisans leave public results and cannot
++  accept new bookings.
++
++### 3.10 Notifications (supporting)
++
++- **FR-NOT-1:** Status-change notifications to artisans (received, under review, decision, resubmission
++  requested, approved, rejected, suspended) — in-app required; email/SMS **[PROPOSED]** channels.
++- **FR-NOT-2:** Booking notifications to customer and artisan (new booking, confirmed, declined, cancelled,
++  completed, reminders **[PROPOSED]**).
++- **FR-NOT-3:** Guarantor contact (if any) follows only the owner-approved process (FR-GUA-3).
++
++---
++
++## 4. Non-Functional Requirements
++
++| ID | Requirement |
++|----|-------------|
++| NFR-1 | Security: OWASP ASVS L2 posture for auth/session/access-control; all sensitive operations server-authorized. |
++| NFR-2 | Privacy: PII minimization, private storage, restrictive rules, audit trails, proportionate retention (see `docs/06-security-privacy-plan.md`). |
++| NFR-3 | Performance **[PROPOSED]**: public listing p95 < 2 s on 3G; booking submit p95 < 3 s. |
++| NFR-4 | Availability **[PROPOSED]**: 99.5% monthly excluding planned maintenance; status page post-MVP. |
++| NFR-5 | Accessibility: WCAG 2.1 AA for public + booking flows. |
++| NFR-6 | Observability: structured logs for auth, booking, payment verification, status transitions; alerting on payment-webhook and rule-denial anomalies. |
++
++---
++
++## 5. Acceptance Criteria (PRD level)
++
++1. All §3 requirements trace to backlog items in `docs/08-implementation-backlog.md`.
++2. All 16 required acceptance tests in `docs/07-test-plan.md` pass with stated expected results.
++3. No public page/API response contains identity documents, identity numbers, guarantor details, or internal statuses (verified by automated privacy tests).
++4. The publication rule (§3.8) holds under every tested state combination.
++5. All **[OWNER DECISION]** items are resolved or explicitly deferred with owner sign-off before production launch, except those the launch-gate table marks deferrable.
++
++---
++
++## 6. Open Issues & Assumptions
++
++- All policy questions are consolidated in `docs/09-owner-decisions.md` — this PRD invents none of the answers.
++- Stack assumption **[PROPOSED]**: Firebase (Auth, Firestore, Cloud Storage, Cloud Functions, Hosting) +
++  Paystack/Flutterwave — see `docs/03-architecture.md`. Owner confirms provider choice (OD-07).
++- Nigerian data-protection obligations (e.g. NDPA 2023 / NDPC guidance) must be confirmed against current
++  authoritative sources and qualified advice — see `docs/06-security-privacy-plan.md` §9.
++- Guarantor liability/consent legal wording requires qualified legal review before implementation (FR-GUA-5).
+diff --git a/docs/02-mvp-roadmap.md b/docs/02-mvp-roadmap.md
+new file mode 100644
+index 0000000..43219d0
+--- /dev/null
++++ b/docs/02-mvp-roadmap.md
+@@ -0,0 +1,137 @@
++# TECHFIX.NG — MVP Roadmap
++
++**Version:** 2.0 (Revised — Authenticated Booking, Mandatory Verification & Guarantor Requirements)
++**Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++**Companion docs:** PRD (`01-PRD.md`), Architecture (`03-architecture.md`), Backlog (`08-implementation-backlog.md`).
++
++> No application code is to be written until the revised documents are reviewed and approved.
++> Phase numbering is logical (dependency order), not calendared — estimates are added after document approval.
++
++---
++
++## 1. MVP Definition (revised)
++
++The MVP is a responsive web app on the approved stack (see `03-architecture.md`) that delivers:
++
++### 1.1 Mandatory before public production launch (launch gates)
++
++| # | Capability | PRD ref |
++|---|------------|---------|
++| G-1 | **Authenticated customer booking** — register/login required; intent-preserving redirect; server-validated identity; per-customer booking isolation; booking history + statuses + validation + error states | FR-CUST-1…8 |
++| G-2 | **Secure artisan identity-document submission** — private upload, allowlisted types, size limits, server validation, error handling | FR-IDV-1…4 |
++| G-3 | **Additional artisan verification information** — per-trade evidence capture honoring mandatory/optional separation | FR-ADD-1…2 |
++| G-4 | **Guarantor information + approved consent workflow** — collection, consent declaration record, restricted access, independent-confirmation hooks (as decided) | FR-GUA-1…4 |
++| G-5 | **Administrative verification & approval** — review queues, decision recording with notes, approve/reject/request-info, suspend | FR-ADM-1…4, FR-IDV-7 |
++| G-6 | **Separate states** — `paymentStatus`, `identityVerificationStatus`, `additionalVerificationStatus`, `guarantorVerificationStatus`, `accountApprovalStatus` tracked and enforced independently | §3.8 |
++| G-7 | **Secure private document storage** — non-public buckets/paths, short-lived access, restrictive rules | FR-IDV-2/8 |
++| G-8 | **Authorization & privacy tests** — all 16 required acceptance tests pass; automated checks that public surfaces leak no sensitive data | `07-test-plan.md` |
++| G-9 | **Publication rule enforcement** — public directory never reveals an artisan with incomplete checks (§3.8 of PRD) | FR-PUB-3, §3.8 |
++
++### 1.2 Explicitly out of MVP scope
++
++- Automated identity verification / third-party KYC integration (manual admin review only).
++- Customer↔artisan payments, escrow, or in-app chat beyond booking contact-disclosure rules.
++- Guarantor legal-liability agreements (blocked on legal review; consent + verification records only).
++- Guarantor independent-confirmation channel **unless** the owner selects it (OD-05) — data model supports it either way.
++- Native mobile apps; multi-country support.
++
++---
++
++## 2. Phased Delivery Plan
++
++Dependencies flow downward; a phase begins when its entry criteria are met.
++
++### Phase 0 — Foundations & governance (entry: document approval)
++
++- Confirm stack + payment provider shortlist decision path (OD-07); set up environments (dev/staging/prod),
++  CI, lint/format, secret management, audit-logging baseline.
++- Owner-decision workshop: resolve OD-01…OD-12 or formally defer per §4.
++- **Exit:** environments live; decision log current; backlog groomed.
++
++### Phase 1 — Identity, roles & public directory shell
++
++- Firebase Auth (email/password + email verification **[PROPOSED]**), custom-claims roles
++  (`customer`, `artisan`, `admin`), session handling.
++- Public artisan profile reads from a **public-only projection**; search/filter UI; "Book Artisan" CTA
++  wired to auth-gated booking intent (deep link preserved).
++- Firestore + Storage rules scaffolding with emulator tests.
++- **Exit:** visitors browse seeded approved profiles; unauthenticated "Book Artisan" routes to auth and
++  returns to intent (acceptance test T-01).
++
++### Phase 2 — Artisan onboarding: account → profile → identity documents
++
++- Artisan registration, professional-profile builder (draft, never public), validation.
++- Secure ID-document upload (FR-IDV-2/3): private paths, allowlist, 5 MB cap **[PROPOSED]**, server
++  re-validation via Functions, error states; metadata recorded, status `pending_review`.
++- **Exit:** artisan can complete PRD steps 1–3; invalid/prohibited files rejected (T-05); self-publish
++  impossible (T-04); unauthorized document access denied (T-06).
++
++### Phase 3 — Additional verification + guarantor workflow
++
++- Evidence capture per §3.5 matrix (portfolio, experience, qualifications/licences where applicable,
++  references, admin-requested extras); mandatory/optional separation enforced per trade.
++- Guarantor capture (FR-GUA-1), consent-declaration record (FR-GUA-3), restricted access (FR-GUA-4);
++  independent-confirmation hooks built behind a policy flag (OD-05/OD-06).
++- **Exit:** artisan can complete PRD steps 4–5; guarantor data isolated (T-07); paid-but-incomplete and
++  verified-but-no-guarantor states behave per T-09/T-10.
++
++### Phase 4 — Payments (fee verification)
++
++- Provider integration (OD-07), server-side webhook/API verification, `paymentStatus` transitions,
++  idempotent handlers, failure/retry UX, refund-status recording hooks (policy OD-09).
++- **Exit:** ₦3,000 fee payable and server-verified end-to-end in staging; client callbacks untrusted by test.
++
++### Phase 5 — Admin review & approval console
++
++- Queues, least-privilege private-material viewers (short-lived URLs, audit-logged), decision recording
++  (approve/reject/request-info with mandatory notes), suspension, notifications.
++- Publication-rule engine (`isPubliclyVisible` computed by trusted code; instant unpublish on regression).
++- **Exit:** full 11-step journey green in staging (T-11, T-12, T-15); rejected/suspended artisans absent
++  from public results (T-13, T-14).
++
++### Phase 6 — Customer booking (authenticated, end-to-end)
++
++- Booking request/confirm/decline/cancel/complete flows, history + statuses, validation + error states,
++  contact-disclosure rules (OD-11), notifications.
++- **Exit:** T-01/T-02/T-03 pass; session-expiry and artisan-suspended-mid-flow handled.
++
++### Phase 7 — Hardening, privacy & launch readiness
++
++- Threat-model mitigations (`06-security-privacy-plan.md`), rules fuzzing, file-upload abuse tests,
++  PII-leak scans, retention/deletion jobs (policy OD-10), correction/deletion request flow (T-16),
++  performance/a11y pass, runbooks, launch-gate audit (§1.1).
++- **Exit:** all launch gates G-1…G-9 evidenced; owner sign-off; production launch.
++
++---
++
++## 3. Milestone / Gate Mapping
++
++| Gate | Satisfied by phases | Primary evidence |
++|------|---------------------|------------------|
++| G-1 Authenticated booking | 1, 6 | T-01, T-02, T-03 + route-protection matrix |
++| G-2 ID-document submission | 2 | T-05, T-06 + upload-validation tests |
++| G-3 Additional verification | 3 | Per-trade evidence tests |
++| G-4 Guarantor + consent | 3 | T-07, T-10 + consent-record tests |
++| G-5 Admin verification/approval | 5 | T-12, T-15 + decision-audit tests |
++| G-6 Separate states | 2, 3, 4, 5 | T-09, T-10, T-11 + transition tests |
++| G-7 Private document storage | 2, 3, 7 | Storage-rules tests, URL-expiry tests |
++| G-8 Auth & privacy tests | 7 (continuous from 1) | Full `07-test-plan.md` suite green |
++| G-9 Publication rule | 5, 7 | T-04, T-09, T-10, T-11, T-13, T-14 |
++
++---
++
++## 4. Decision Dependencies (what blocks what)
++
++- **OD-01 (accepted ID documents)** blocks Phase 2 UI copy/validation lists — owner must approve before Phase 2 exit.
++- **OD-03 (per-trade evidence policy)** blocks Phase 3 mandatory/optional enforcement.
++- **OD-04/05/06 (guarantor policy, consent recording, independent confirmation)** block Phase 3 consent UX finalization;
++  consent-declaration + restricted storage can proceed on the proposed baseline.
++- **OD-07 (payment provider; extra fees)** blocks Phase 4 integration choice (scaffold with a provider interface meanwhile).
++- **OD-08/09 (rejection/resubmission/appeal/refund)** block Phase 5 notification copy and refund handling; decision
++  recording + resubmission-required state proceed regardless.
++- **OD-10 (retention periods)** and **OD-11 (who sees what contact data)** block Phase 7 retention jobs and Phase 6
++  disclosure rules; restrictive defaults ship until decided.
++- **OD-02 (manual vs automated verification)** defaults to **manual** for MVP; any provider integration is post-MVP.
++- **OD-12 (suspension effects on existing bookings)** blocks Phase 5/6 edge-case copy; new-booking block is mandatory regardless.
++
++Unresolved decisions at launch require explicit documented deferral with restrictive defaults — see `09-owner-decisions.md`.
+diff --git a/docs/03-architecture.md b/docs/03-architecture.md
+new file mode 100644
+index 0000000..c8c5d03
+--- /dev/null
++++ b/docs/03-architecture.md
+@@ -0,0 +1,181 @@
++# TECHFIX.NG — System Architecture
++
++**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++
++---
++
++## 1. Architecture Overview
++
++**Proposed stack** (provider choice OD-07 confirms payments; otherwise this stack stands unless the owner overrides):
++
++```
++┌─────────────┐     HTTPS      ┌──────────────────────────────┐
++│  Web client │ ◄────────────► │  Firebase Hosting (static)   │
++│ (responsive │                │  + CDN                       │
++│  SPA)       │                └──────────────────────────────┘
++└──────┬──────┘
++       │  Firebase SDK (Auth / Firestore / Storage / Functions)
++       ▼
++┌──────────────────────────────────────────────────────────────┐
++│ Firebase project (per environment: dev / staging / prod)     │
++│  ┌────────────┐  ┌────────────┐  ┌────────────────────────┐  │
++│  │ Firebase   │  │ Firestore  │  │ Cloud Storage          │  │
++│  │ Auth       │  │ (rules-    │  │ (private paths + rules │  │
++│  │ + custom   │  │ enforced)  │  │  + short-lived URLs)   │  │
++│  │ claims     │  └────────────┘  └────────────────────────┘  │
++│  └────────────┘  ┌────────────────────────────────────────┐  │
++│                  │ Cloud Functions (trusted server logic) │  │
++│                  │ • booking create/transition validation │  │
++│                  │ • payment webhook verification         │  │
++│                  │ • file re-validation & metadata        │  │
++│                  │ • status transitions & publication     │  │
++│                  │ • admin actions & audit logging        │  │
++│                  └────────────────────────────────────────┘  │
++└──────────────────────────────────────────────────────────────┘
++       │ HTTPS webhooks / server API
++       ▼
++┌──────────────────┐     ┌──────────────────┐
++│ Payment provider │     │ Email/SMS (notify│
++│ Paystack or      │     │  — [PROPOSED])   │
++│ Flutterwave [OD] │     └──────────────────┘
++└──────────────────┘
++```
++
++**Principles:**
++
++1. **Zero trust in the client.** Every sensitive write/transition is validated by Security Rules **and/or**
++   Cloud Functions. Client success callbacks (payments, uploads) are never trusted.
++2. **Public data is a projection.** Public artisan profiles are separate, public-only documents maintained by
++   trusted code — never the artisan's private record filtered client-side.
++3. **Private by default.** Identity docs, guarantor data, review notes live in restricted collections/paths.
++4. **State machines are explicit.** All verification/payment/approval transitions are enumerated; illegal
++   transitions are rejected server-side (see `04-database-schema.md` §5).
++5. **Audit everything sensitive.** Admin decisions, status changes, private-file accesses, consent records —
++   append-only audit logs.
++
++---
++
++## 2. Authentication Architecture (revised for mandatory booking auth)
++
++### 2.1 Providers & flows
++
++- Email/password + email verification **[PROPOSED]**; Google sign-in **[PROPOSED, optional]**.
++- Roles via **Auth custom claims**: `role ∈ {customer, artisan, admin}` (+ `adminLevel` if tiered access is adopted, OD-11).
++- A user may hold **one primary role** for MVP **[PROPOSED]** (a person needing both customer and artisan
++  functions uses the artisan account, which includes booking rights — avoids dual-account confusion).
++- Sessions: Firebase ID tokens (1 h) with refresh; sensitive actions (review decisions, consent declaration)
++  require a **fresh token** (re-auth if older than **[PROPOSED]** 15 min for admin decisions).
++
++### 2.2 Registration & login (customer booking gate)
++
++```
++Visitor clicks "Book Artisan" on /artisans/{id}
++  → not authenticated?
++      → redirect /login?next=/artisans/{id}/book   (intent preserved; allowlisted paths only)
++      → login or register → email verify (if required) → return to {next}
++  → authenticated? → booking form, customerId bound server-side to auth.uid
++```
++
++- `next` parameter is **allowlisted** to same-origin booking/profile paths (open-redirect prevention).
++- Booking drafts survive re-authentication where practical (local draft + server validation on submit).
++- Session expiry mid-booking → re-authenticate → resume flow; no data loss beyond what validation requires.
++
++### 2.3 Server-side identity validation
++
++- Callable Functions and Firestore rules both resolve identity from the **verified ID token** (`auth.uid`,
++  `auth.token.role`). Any `customerId`/`artisanId` supplied by the client that must equal the caller is
++  cross-checked and rejected on mismatch.
++- Admin-only operations additionally require `auth.token.role == "admin"` (claim set only by the admin-grant
++  procedure, §6.3 of the security plan — never self-assignable).
++
++---
++
++## 3. Route Protection Strategy
++
++### 3.1 Client route matrix
++
++| Route | Visitor | Customer | Artisan | Admin |
++|---|---|---|---|---|
++| `/`, `/artisans`, `/artisans/{id}` (public) | ✅ | ✅ | ✅ | ✅ |
++| `/login`, `/register` | ✅ | redirect home | redirect home | redirect home |
++| `/artisans/{id}/book` | ➡️ login (`?next=…`) | ✅ | ✅ (own booking rights) | ✅ view-only |
++| `/bookings`, `/bookings/{bid}` | ➡️ login | ✅ own only | ✅ received only | ✅ (support, audited) |
++| `/artisan/onboarding/*` | ➡️ login | ➡️ role home | ✅ own only | ✅ (support, audited) |
++| `/artisan/dashboard` | ➡️ login | ➡️ role home | ✅ own only | ✅ (support, audited) |
++| `/admin/*` | ➡️ login then 403 | 403 | 403 | ✅ least-privilege |
++
++Client guards are **UX only** — every route's data is independently protected by Firestore/Storage rules + Functions.
++
++### 3.2 API / data-access enforcement layers
++
++| Operation | Layer 1 (rules) | Layer 2 (Functions) |
++|---|---|---|
++| Create booking | rules: authed, `customerId == auth.uid`, artisan publishable (via public doc) | Function validates artisan visibility snapshot, slot/status, writes canonical record |
++| Read booking | rules: owner customer OR assigned artisan OR admin | — |
++| Artisan profile edit (draft) | rules: owner artisan, approval-pending fields only | — |
++| Publish/unpublish artisan | rules: deny all direct writes | Function-only, evaluates publication rule |
++| Status transitions (verify/approve/…) | rules: deny all direct writes | Admin-only Function with audit log |
++| Upload ID/supporting doc | Storage rules: owner artisan, path/type/size | Function re-validates bytes, writes metadata |
++| Read private file | Storage rules: deny all direct reads | Signed/short-lived URL minted by Function after authz |
++| Payment webhook | — | Provider-signature-verified Function, idempotent |
++| Admin decision | rules: deny all direct writes | Admin-only Function, fresh-token + audit |
++
++---
++
++## 4. Component Design
++
++### 4.1 Public profile projection
++
++- Canonical artisan record (private) → Cloud Function trigger maintains `publicArtisans/{id}` **only while**
++  the publication rule holds; deletes/omits it the moment any condition regresses.
++- Public search/listing queries **only** `publicArtisans` — incomplete artisans are unreachable by construction,
++  not by filter discipline.
++
++### 4.2 Booking service (Function-backed)
++
++- `createBooking({artisanId, serviceDetails, preferredTime, …})`: verifies caller auth, artisan `isPubliclyVisible`
++  at submit time, input validation; creates booking with `customerId = auth.uid`, status `pending`.
++- Transitions (`confirm/decline/cancel/complete`) validated against the booking state machine; suspended-artisan
++  block enforced here (T-14) as well as in rules.
++
++### 4.3 Verification pipeline (Function-backed)
++
++- `submitIdentityDocument`, `submitEvidence`, `submitGuarantor` (metadata writes; files via resumable private upload).
++- `recordReviewDecision({applicationId, scope: identity|additional|guarantor|final, decision, notes})`:
++  admin-only, fresh token, mandatory notes, audit-logged; drives status fields and publication recompute.
++- `requestResubmission` / `recordAppeal` / `recordRefund` exist as recording endpoints; their **policies** are
++  owner decisions (OD-08/09) — endpoints enforce whatever policy flags are configured.
++
++### 4.4 Payment verification
++
++- Provider webhook → signature verification → idempotent `paymentStatus` update (`pending → verified/failed`) →
++  publication recompute → artisan notification. No client-writable payment fields exist.
++
++### 4.5 Notifications
++
++- Trigger-based (status transitions, booking events) → in-app notification docs + email/SMS fan-out **[PROPOSED]**.
++- Guarantor outreach, if any, only through the owner-approved process (PRD FR-GUA-3).
++
++---
++
++## 5. Environments & Operations
++
++- Separate Firebase projects: `techfix-dev`, `techfix-staging`, `techfix-prod` **[PROPOSED]**.
++- Emulator Suite for rules + Functions tests in CI; staging mirrors prod config with test provider keys.
++- Secrets in Secret Manager; no secrets in client bundle or repo.
++- Structured logging (JSON) with correlation IDs; alerts on webhook failures, rule-denial spikes, decision anomalies.
++- Backups: scheduled Firestore exports; Storage versioning/lifecycle per retention policy (OD-10).
++
++---
++
++## 6. Key Architectural Decisions (ADRs, summarized)
++
++| ID | Decision | Rationale |
++|----|----------|-----------|
++| ADR-1 | Public profiles are a separate projection, not filtered private docs | Makes leaks structurally impossible; satisfies FR-PUB-2/3 |
++| ADR-2 | All status transitions via Functions; direct writes denied | Prevents self-approval, self-publish, forged payment states |
++| ADR-3 | Private files never directly readable; short-lived URLs via Function | Prevents leaked-link abuse; enables per-access audit |
++| ADR-4 | Server-side MIME sniffing + allowlist + size cap on uploads | Defense in depth against malicious uploads |
++| ADR-5 | Manual admin review for MVP; no KYC-vendor claim | Honest posture per BR-5; provider decision deferred (OD-02) |
++| ADR-6 | Payment verification webhook-only, idempotent | Prevents forged payment states |
++| ADR-7 | Intent-preserving auth redirect with allowlisted `next` | Satisfies FR-CUST-2 without open redirects |
+diff --git a/docs/04-database-schema.md b/docs/04-database-schema.md
+new file mode 100644
+index 0000000..b131e7f
+--- /dev/null
++++ b/docs/04-database-schema.md
+@@ -0,0 +1,244 @@
++# TECHFIX.NG — Database & Storage Design (Firestore + Cloud Storage)
++
++**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++
++> Design rule: sensitive document *contents* live in private Cloud Storage; Firestore holds **metadata +
++> private storage references + statuses** in restricted collections. General-purpose/public documents never
++> carry identity numbers, document URLs, or guarantor contact details.
++
++---
++
++## 1. Collection Map
++
++```
++users/{uid}                        — account + role (owner-readable, limited fields)
++publicArtisans/{artisanId}         — PUBLIC projection (world-readable; trusted writes only)
++artisans/{artisanId}               — private artisan record (owner artisan + admin)
++artisans/{artisanId}/identityDocs/{docId}      — ID metadata (owner + admin)
++artisans/{artisanId}/evidence/{evidenceId}     — supporting-evidence metadata (owner + admin)
++artisans/{artisanId}/guarantor/{gId}           — guarantor info + status (admin + owner-limited*)
++artisans/{artisanId}/reviews/{reviewId}        — admin decisions (admin; artisan sees outcome subset*)
++artisans/{artisanId}/consents/{consentId}      — consent records (admin; artisan sees own declaration)
++applications/{artisanId}           — pipeline aggregate: statuses, timestamps, resubmission (owner-limited + admin)
++bookings/{bookingId}               — bookings (customer owner + assigned artisan + admin)
++notifications/{uid}/items/{nid}    — per-user notifications (recipient + system)
++auditLogs/{logId}                  — append-only (admin-auditors; Functions write)
++adminUsers/{uid}                   — admin roster/levels (admins; bootstrap procedure)
++```
++
++`*` Owner-limited = the artisan sees only non-sensitive outcome fields (e.g. status + guidance), never
++reviewer-internal notes or guarantor contact details beyond what they submitted. Exact field masks are defined
++per collection below; contact-disclosure details await OD-11.
++
++---
++
++## 2. Core Documents
++
++### 2.1 `users/{uid}`
++
++| Field | Type | Notes |
++|---|---|---|
++| `role` | `customer \| artisan \| admin` | Set by trusted code only; mirrored in custom claims |
++| `displayName` | string | |
++| `email` | string | Auth-managed; lowercased |
++| `phone` | string (E.164) | Optional for customers; required for artisans **[PROPOSED]** |
++| `emailVerified` | bool | Mirror of Auth state (Function-maintained) |
++| `createdAt`, `updatedAt` | timestamp | |
++
++Rules: owner can read own doc; owner can update allowlisted profile fields only; `role` unwritable by owner.
++
++### 2.2 `publicArtisans/{artisanId}` (PUBLIC — world-readable, Function-written only)
++
++| Field | Type | Notes |
++|---|---|---|
++| `artisanId`, `displayName` | | Public business identity |
++| `trade`, `specializations[]` | | |
++| `state`, `lga`, `serviceAreas[]` | | Coarse location only (no home address) |
++| `bio` | string | Admin-approved text **[PROPOSED]** |
++| `portfolioPhotoUrls[]` | signed-or-public URLs | Only admin-approved portfolio images; see §6 |
++| `ratingAvg`, `ratingCount` | number | Computed |
++| `availabilityNote` | string | e.g. "Mon–Sat, 8am–6pm" |
++| `verifiedTradeBadges[]` | string[] | Derived ONLY from actually-checked credentials (BR-6) |
++| `isPubliclyVisible` | bool `true` | Present only while publication rule holds; doc deleted otherwise |
++| `publishedAt`, `updatedAt` | timestamp | |
++
++**Must never contain:** identity docs/numbers, guarantor data, payment data, review notes, internal statuses,
++exact home address, or private contact details beyond the owner-approved disclosure (OD-11).
++
++### 2.3 `artisans/{artisanId}` (private artisan record)
++
++| Field | Type | Notes |
++|---|---|---|
++| `ownerUid` | string | `== artisanId` for MVP (1:1 account) |
++| `profileComplete` | bool | Steps 1–2 done |
++| `trade`, `experienceYears`, `bio` (draft) | | Draft until approved |
++| `phone`, `state`, `lga`, `address` (private) | | Never projected to public |
++| `suspended` | bool | Admin-only |
++| `suspensionReason`, `suspendedAt`, `suspendedBy` | | Admin-only |
++| `createdAt`, `updatedAt` | timestamp | |
++
++### 2.4 `applications/{artisanId}` (pipeline aggregate — the state machine home)
++
++| Field | Type | Notes |
++|---|---|---|
++| `paymentStatus` | `unpaid\|pending\|verified\|failed\|refunded` | Function-only (webhook) |
++| `paymentRef`, `paidAt`, `amountKobo` (=300000) | | Receipt metadata, no card data |
++| `identityVerificationStatus` | `not_submitted\|pending_review\|verified\|rejected\|resubmission_required` | Function-only (admin decision) |
++| `additionalVerificationStatus` | `not_submitted\|pending_review\|approved\|rejected\|resubmission_required` | Function-only |
++| `guarantorVerificationStatus` | `not_submitted\|pending_review\|contacted_pending\|verified\|rejected\|resubmission_required` | Function-only |
++| `accountApprovalStatus` | `draft\|in_review\|approved\|rejected\|resubmission_required\|suspended` | Function-only |
++| `isPubliclyVisible` | bool | Computed by trusted code per publication rule |
++| `currentStep` | 1–11 | UX progress pointer (derived, not authoritative) |
++| `rejectionReason`, `rejectionAt`, `rejectedBy` | | Set on reject |
++| `resubmissionCount`, `lastResubmittedAt` | | Resubmission tracking (policy OD-08) |
++| `appealStatus`, `refundStatus` | enums + metadata | Recording hooks (policy OD-08/09) |
++| `submittedAt`, `decidedAt`, `updatedAt` | timestamp | |
++
++Rules: artisan reads own aggregate; **no direct status writes** by artisan; admin reads all; writes Function-only.
++
++### 2.5 `artisans/{artisanId}/identityDocs/{docId}` (restricted metadata)
++
++| Field | Type | Notes |
++|---|---|---|
++| `documentType` | enum from OD-01 list | e.g. `nin_slip\|voters_card\|drivers_licence\|passport` **[PROPOSED values]** |
++| `storagePath` | string | Private path, e.g. `private/artisans/{id}/identity/{docId}.pdf` — **never a public URL** |
++| `fileName`, `mimeType`, `sizeBytes`, `sha256` | | Integrity + validation record |
++| `idNumberLast4` | string | Only last-4 in Firestore **[PROPOSED]**; full number only if OD-01 process requires, still never public |
++| `fullNumber` | string (restricted) | Only if required by approved process; admin + auditor access, never returned to client except reviewer view |
++| `nameOnDocument`, `expiryDate` | | Minimal necessary fields |
++| `status` | mirrors identity scope | `pending_review\|verified\|rejected\|resubmission_required` |
++| `uploadedAt`, `reviewedAt`, `reviewedBy`, `reviewNotes` (admin-only subfield) | | |
++
++### 2.6 `artisans/{artisanId}/evidence/{evidenceId}` (supporting verification)
++
++| Field | Type | Notes |
++|---|---|---|
++| `evidenceType` | `qualification\|licence\|portfolio\|experience\|reference\|admin_requested` | |
++| `trade` | string | For per-trade policy evaluation (OD-03) |
++| `storagePath` (+ `mimeType`, `sizeBytes`, `sha256` if file) | | Private path; portfolio images approved for public get copied/approved separately |
++| `textContent` / `referenceContact` | | Experience statements; reference contacts (restricted like guarantor data) |
++| `credentialChecked` | bool | True only after actual check (BR-6); drives `verifiedTradeBadges[]` |
++| `status`, `reviewedAt`, `reviewedBy`, `reviewNotes(admin)` | | |
++
++### 2.7 `artisans/{artisanId}/guarantor/{gId}` (highly restricted)
++
++| Field | Type | Notes |
++|---|---|---|
++| `fullName` | string | **[PROPOSED required]** pending OD-04 |
++| `phone` | string (E.164) | **[PROPOSED required]** — never public, never to artisan support staff beyond need-to-know |
++| `relationship` | string | **[PROPOSED required]** |
++| `extraInfo` | map | Only owner-approved additional fields (OD-04) |
++| `contacted` | bool | Whether guarantor has been contacted (per approved process only) |
++| `contactedAt`, `contactedBy`, `contactChannel`, `contactOutcome` | | Contact record |
++| `status` | mirrors guarantor scope | `pending_review\|contacted_pending\|verified\|rejected\|resubmission_required` |
++| `reviewNotes(admin)`, `reviewedAt`, `reviewedBy` | | |
++
++Rules: **admin (verification role) + auditors only** for reads; artisan sees only `status` + guidance text via the
++aggregate/outcome view, not this document. No liability language stored (FR-GUA-5).
++
++### 2.8 `artisans/{artisanId}/consents/{consentId}`
++
++| Field | Type | Notes |
++|---|---|---|
++| `type` | `guarantor_consent_declaration \| guarantor_independent_confirmation \| data_processing` | |
++| `declaredBy` (artisan uid), `declarationText` (versioned), `declaredAt` | | Artisan's informed-consent declaration |
++| `confirmationChannel`, `confirmedAt`, `confirmationRef` | | Independent confirmation, if OD-05 requires it |
++| `policyVersion` | string | Pins which consent wording was used |
++
++### 2.9 `artisans/{artisanId}/reviews/{reviewId}`
++
++| Field | Type | Notes |
++|---|---|---|
++| `scope` | `identity\|additional\|guarantor\|final\|suspension` | |
++| `decision` | `approve\|reject\|request_info\|suspend\|unsuspend` | |
++| `reasonCode`, `notes` (admin-only), `guidanceForArtisan` (shareable) | | |
++| `decidedBy`, `decidedAt` | | Mirrored to `auditLogs` |
++
++### 2.10 `bookings/{bookingId}`
++
++| Field | Type | Notes |
++|---|---|---|
++| `customerId` | string | `== auth.uid` of creator; immutable; indexed |
++| `artisanId` | string | Must reference a publicly visible artisan at creation |
++| `status` | `pending\|confirmed\|completed\|cancelled\|declined` **[PROPOSED]** | Function-validated transitions |
++| `serviceDescription`, `preferredDate`, `locationNote` | | Customer input, validated |
++| `artisanSnapshot` | `{displayName, trade, phone(disclosure per OD-11)}` | Point-in-time copy |
++| `statusHistory[]` | `{from,to,at,by}` | Append-only via Function |
++| `createdAt`, `updatedAt` | timestamp | |
++
++Rules: read iff `auth.uid == customerId` OR assigned artisan OR admin; create iff authed + `customerId == auth.uid` +
++artisan publishable; status writes Function-only.
++
++### 2.11 `notifications/{uid}/items/{nid}`
++
++`{type, title, body, link, read, createdAt}` — recipient-read (+ system write). Verification/booking events.
++
++### 2.12 `auditLogs/{logId}` (append-only)
++
++`{actorUid, actorRole, action, targetPath, before, after, reason, at, requestId}` — Function-written; no client writes;
++admin-auditor reads. Covers: decisions, transitions, private-file URL minting, consent records, admin grants.
++
++### 2.13 `adminUsers/{uid}`
++
++`{level, grantedBy, grantedAt, revokedAt}` — controls verification-role membership; bootstrap procedure in security plan.
++
++---
++
++## 3. Status Ownership & Transition Authority
++
++| State | Writer | Reader |
++|---|---|---|
++| `paymentStatus` | Payment-webhook Function only | artisan (own), admin |
++| `identity/additional/guarantor/account` statuses | Review-decision Function (admin auth) only | artisan sees own aggregate; sub-doc internals admin-only |
++| `isPubliclyVisible` / `publicArtisans/*` | Publication Function only | public read |
++| Booking `status` | Booking Function only | parties + admin |
++| Private file bytes | artisan upload (write-once path), Function validation | short-lived URL via Function after authz |
++
++---
++
++## 4. Permitted Status Transitions (enforced server-side)
++
++```
++payment:      unpaid → pending → verified | failed ; verified → refunded (policy OD-09)
++identity:     not_submitted → pending_review → verified | rejected | resubmission_required
++              resubmission_required → pending_review (on resubmit, if OD-08 allows)
++additional:   (same shape as identity) → approved instead of verified
++guarantor:    not_submitted → pending_review → contacted_pending → verified | rejected | resubmission_required
++account:      draft → in_review → approved | rejected | resubmission_required ; approved ⇄ suspended
++booking:      pending → confirmed | declined | cancelled ; confirmed → completed | cancelled
++```
++
++Illegal transitions (e.g. artisan self-verify, publish without approval, skip contacted-state where policy requires
++it) are rejected and logged.
++
++---
++
++## 5. Cloud Storage Layout
++
++```
++gs://<bucket>/
++  private/
++    artisans/{artisanId}/
++      identity/{docId}                    — ID files (owner-write-once, no direct read)
++      evidence/{evidenceId}               — supporting files
++      guarantor/{gId}/declaration         — guarantor declaration file, if OD-06 requires
++  public-approved/
++    artisans/{artisanId}/portfolio/{file} — ONLY admin-approved portfolio copies (public read)
++```
++
++- Upload constraints (enforced in Storage rules + re-checked by Function): allowlist
++  `image/jpeg, image/png, application/pdf` **[PROPOSED]**; ≤ 5 MB **[PROPOSED]**; path must match
++  `auth.uid`; write-once (no overwrite of under-review files — resubmission creates a new version).
++- Reads: `private/**` denies all direct reads; access only via Function-minted short-lived signed URLs
++  (TTL **[PROPOSED]** 15 min), each mint audit-logged.
++- Retention lifecycle (durations OD-10): rejected-applicant files quarantined then auto-deleted; see security plan §8.
++
++---
++
++## 6. Validation Rules Summary
++
++- All writes: type checks, length caps (bio ≤ 500 chars **[PROPOSED]**, notes ≤ 2000 **[PROPOSED]**), enum membership.
++- Phone numbers E.164; emails lowercased; timestamps server-set (`serverTimestamp()` / Function time).
++- No sensitive field may appear in `publicArtisans/*` — enforced by a dedicated rules unit test + a Function-side
++  allowlist serializer (defense in depth).
++- Idempotency keys on payment webhooks, booking creates (client-generated UUID), and decision records.
+diff --git a/docs/05-user-flows.md b/docs/05-user-flows.md
+new file mode 100644
+index 0000000..97f420f
+--- /dev/null
++++ b/docs/05-user-flows.md
+@@ -0,0 +1,172 @@
++# TECHFIX.NG — User Flows & Customer/Artisan Journeys
++
++**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++
++---
++
++## 1. Visitor — Browse Public Directory (no account required)
++
++```
++1. Visitor opens TechFix.ng → sees search + trade categories + featured approved artisans
++2. Visitor searches/filters (trade, state/LGA) → results from public projection ONLY
++3. Visitor opens artisan profile → public fields only (bio, trade, service areas,
++   approved portfolio, ratings, availability, verified-trade badges)
++4. Visitor clicks "Book Artisan"
++     → Authenticated? → booking flow (§2.2)
++     → Not authenticated? → /login?next=/artisans/{id}/book (§2.1)
++```
++
++Error/edge states: artisan unpublished mid-view ("no longer available" page, no private leakage);
++search with no results (helpful empty state); offline behavior (cached public pages where feasible).
++
++---
++
++## 2. Customer Journeys (authentication mandatory for booking)
++
++### 2.1 Register / login with intent return
++
++```
++1. Unauthenticated visitor hits auth gate (Book click or /bookings deep link)
++2. System routes to /login?next={allowlisted intent} with "Log in to continue booking {artisan}"
++3. Customer logs in OR registers (name, email, phone [PROPOSED optional], password)
++4. Email verification if required [PROPOSED] → then automatic return to {intent}
++5. Customer lands back on intended artisan profile / booking form; draft preserved
++```
++
++Validation & errors: duplicate email, weak password, unverified-email restriction, expired session,
++invalid/expired `next` (fall back to home — never open-redirect).
++
++### 2.2 Submit a booking (authenticated)
++
++```
++1. Customer on artisan profile → "Book Artisan" → booking form
++2. Customer enters: service description, preferred date/time, location note,
++   contact phone (prefilled, editable)
++3. Client validates (required fields, date not in past, lengths) → submit
++4. SERVER validates: auth token → customerId; artisan publicly visible NOW;
++   re-validates all fields; creates booking (status: pending)
++5. Confirmation screen + notification to customer and artisan
++```
++
++Error states: artisan unpublished/suspended mid-flow (clear message, suggest alternatives — no private data);
++slot/status conflict; network failure (safe retry with idempotency key — no duplicate bookings);
++session expiry (re-auth, draft preserved).
++
++### 2.3 Booking history & status
++
++```
++1. Customer opens /bookings → list of OWN bookings (newest first), each with
++   status chip, artisan name/trade, date, reference
++2. Customer opens booking detail → full thread: status history, artisan contact
++   per disclosure policy (OD-11), actions allowed by state machine
++   (pending → cancel; confirmed → cancel per policy; completed → rate [PROPOSED])
++3. Customer attempts another customer's booking URL → 404-equivalent (no existence oracle)
++```
++
++### 2.4 Correction / deletion request
++
++```
++1. Customer (or artisan applicant) opens Privacy → "Request correction or deletion"
++2. Submits scoped request (which data, why) → tracked ticket [PROPOSED: in-app + email ack]
++3. Admin processes per retention obligations (OD-10): corrects, deletes where allowed,
++   or refuses with lawful basis + explanation
++4. Requester notified of outcome
++```
++
++---
++
++## 3. Artisan Journey (11-step registration & approval)
++
++```
++Step  1. CREATE ACCOUNT ── register as artisan; verify email [PROPOSED]
++Step  2. COMPLETE PROFILE ── trade, experience, bio draft, phone, state/LGA,
++         service areas (saved as private DRAFT — never public)
++Step  3. SUBMIT IDENTITY DOCUMENT ── choose doc type (owner-approved list, OD-01),
++         upload file (allowlist + 5 MB [PROPOSED]), enter minimal fields;
++         → identityVerificationStatus = pending_review
++Step  4. ADDITIONAL VERIFICATION ── portfolio photos (≥3 [PROPOSED]),
++         experience statement, qualifications/licences where applicable,
++         references; mandatory vs optional enforced per trade matrix (OD-03);
++         → additionalVerificationStatus = pending_review
++Step  5. GUARANTOR ── full name, phone, relationship (+ approved extras, OD-04);
++         artisan records informed-consent declaration; independent guarantor
++         confirmation only if OD-05 requires it;
++         → guarantorVerificationStatus = pending_review
++Step  6. PAY FEE ── pay one-time ₦3,000 via approved provider (OD-07)
++Step  7. SERVER VERIFIES PAYMENT ── webhook/API confirmation;
++         → paymentStatus = verified (artisan sees receipt — NOT publication)
++Step  8. ENTERS REVIEW ── application queued; artisan sees "Under review" tracker
++Step  9. ADMIN REVIEWS ── identity, evidence, guarantor, payment (§4)
++Step 10. DECISION ── approved | rejected (notified; resubmission/appeal/refund
++         per OD-08/09) | resubmission-required (artisan corrects & resubmits)
++Step 11. PUBLISHED ── ONLY when payment verified + identity verified +
++         additional approved + guarantor verified + admin approved + not suspended
++         → profile appears in public listings; artisan can receive bookings
++```
++
++Journey rules:
++
++- Progress tracker shows the 11 steps with per-step state; steps unlock in order **[PROPOSED]** (steps 3–5
++  may be completed in any order once step 2 is done, but all are required before payment — restriction
++  keeps the pipeline auditable; relax only with owner approval).
++- **Payment never publishes.** A paid artisan with incomplete verification sees "Payment received —
++  verification pending" and remains invisible publicly (acceptance tests T-09/T-10/T-11).
++- Rejected artisans see the decision, shareable guidance, and whatever recourse the approved policy allows
++  (OD-08/09) — never reviewer-internal notes.
++- Suspended artisans: removed from public results immediately; cannot accept new bookings; existing bookings
++  handled per OD-12.
++
++---
++
++## 4. Administrator Journeys
++
++### 4.1 Verification review (per scope: identity → additional → guarantor → final)
++
++```
++1. Admin logs in (admin role; fresh token for decisions [PROPOSED 15 min])
++2. Admin opens Review Queue → filters (pending identity / additional / guarantor /
++   final approval / resubmissions / flagged)
++3. Admin opens application → sees pipeline aggregate + private materials via
++   short-lived, audit-logged viewers (each access logged)
++4. Admin checks materials against policy checklists (per-scope criteria; no automated
++   genuineness claim — manual review only for MVP)
++5. Admin records decision (scope + approve/reject/request-info + MANDATORY reason
++   + notes + optional guidance for artisan) → Function validates authority,
++   writes status, audit log, notification, publication recompute
++6. Final approval only enabled when payment verified + all three verification scopes approved
++```
++
++### 4.2 Guarantor handling (under approved process only)
++
++```
++1. Admin opens guarantor section (restricted to verification role; access logged)
++2. If policy requires contact (OD-04/05): admin follows the approved script/channel,
++   records contacted/when/outcome — no personal data sent to the guarantor beyond
++   what the approved process allows
++3. Admin records guarantor scope decision
++```
++
++No guarantor contact or data disclosure occurs without the owner-approved process (PRD FR-GUA-3).
++
++### 4.3 Suspension
++
++```
++1. Admin opens artisan → Suspend (reason MANDATORY) → publication recompute removes
++   profile immediately; new bookings blocked; parties to existing bookings notified
++2. Unsuspend reverses, re-evaluating the full publication rule (re-review if policy requires)
++```
++
++### 4.4 Correction / deletion requests
++
++Admin processes data-subject requests per §2.4 within the owner-approved SLA **[OWNER DECISION — part of OD-10]**.
++
++---
++
++## 5. Cross-Cutting UX Rules
++
++- Every auth gate explains *why* login is needed and where the user will return afterward.
++- Every status shown to artisans/customers uses plain language ("Under review", "Needs attention")
++  with next-step guidance — never internal enum names or reviewer notes.
++- Public pages and error messages must not leak existence or details of private records
++  (uniform 404s, generic auth errors, no UID/enumeration oracles).
++- All file uploads show type/size requirements up front, progress, and specific, actionable errors.
+diff --git a/docs/06-security-privacy-plan.md b/docs/06-security-privacy-plan.md
+new file mode 100644
+index 0000000..b3ddac7
+--- /dev/null
++++ b/docs/06-security-privacy-plan.md
+@@ -0,0 +1,141 @@
++# TECHFIX.NG — Security, Privacy & Data-Retention Plan
++
++**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++
++---
++
++## 1. Threat Model (revised for verification & guarantor data)
++
++| # | Threat | Assets at risk | Mitigations (required for launch) | Test |
++|---|--------|----------------|-----------------------------------|------|
++| T-01 | Unauthorized access to identity documents | ID files, ID numbers | Private paths; deny-all direct reads; short-lived URLs via authz Function; per-access audit | AT-06 |
++| T-02 | Unauthorized access to guarantor information | Guarantor PII | Verification-role-only reads; no client access to guarantor docs; audit logging | AT-07 |
++| T-03 | Forged/manipulated uploaded documents | Verification integrity | Server MIME sniffing, allowlist, size caps, hash record; manual review checklist; no genuineness claim (BR-5) | AT-05 + review tests |
++| T-04 | Malicious file uploads (malware, polyglots, bombs) | Platform + reviewers | Allowlist `jpg/png/pdf` + 5 MB cap **[PROPOSED]**; magic-byte check; no executable handling; reviewer sandbox guidance; AV scan post-MVP **[PROPOSED]** | Upload-abuse suite |
++| T-05 | Excessive PII collection | Data subjects | Field minimization (PRD FR-IDV-5/FR-GUA-1); no extra fields without approval; form audits | Schema review gate |
++| T-06 | Unauthorized administrator access / rogue admin | All private data | Admin-grant procedure (§6.3); least-privilege levels; fresh-token decisions; full audit trail; periodic access review **[PROPOSED]** | Admin-authz tests |
++| T-07 | Verification-status tampering (self-approval, self-publish) | Directory integrity | Function-only transitions; rules deny direct writes; transition allowlist enforced + logged | AT-04, AT-08 |
++| T-08 | Leaked document links | ID/evidence files | Short-lived signed URLs (TTL 15 min **[PROPOSED]**); no public URLs for private files; expiry + revocation tests | URL-expiry tests |
++| T-09 | Indefinite retention of rejected applicants' data | Data subjects | Retention schedule (§8; durations OD-10); quarantine → auto-delete jobs; deletion certificates in audit log | Retention tests |
++| T-10 | Cross-customer booking access | Customer privacy | Rules + Function ownership checks; 404-equivalence (no oracles) | AT-03 |
++| T-11 | Payment-state forgery | Revenue integrity | Webhook signature verification; idempotent server-side transitions; no client-writable payment fields | Payment tests |
++| T-12 | Session / auth attacks | Accounts | Firebase-managed sessions; allowlisted `next`; rate-limited auth endpoints; email verification **[PROPOSED]** | Auth tests |
++
++---
++
++## 2. Firestore Rules Strategy
++
++- **Default deny.** Every collection starts closed; each granted operation is justified in a rules inventory.
++- Ownership pattern: `request.auth.uid == resource.data.<ownerField>` for customer/artisan reads of own data.
++- **No direct writes** to: `publicArtisans/*`, all status fields in `applications/*`, `reviews/*` decisions,
++  `auditLogs/*`, booking `status`, guarantor docs (artisan client has zero access), admin roster.
++- Admin reads/writes gated on verified custom claim `role == "admin"` (+ `adminLevel` where OD-11 tiers apply),
++  checked in rules **and** re-checked in Functions.
++- Field masks: artisan reads of own application exclude admin-internal subfields (separate outcome-view docs or
++  Function-mediated reads — implementation backlog item; the rule is "internal notes never reach the artisan client").
++- Emulator-tested: every allow/deny case in `07-test-plan.md` has a rules unit test.
++
++## 3. Cloud Storage Rules Strategy
++
++- `private/**`: **no direct reads by anyone** (not even the owner — reads go through the URL-minting Function
++  after authorization, enabling audit + expiry). Writes: owner artisan only, path-bound to `auth.uid`,
++  `request.resource.size ≤ 5 MiB` **[PROPOSED]**, `contentType ∈ {image/jpeg, image/png, application/pdf}`.
++- `public-approved/**`: public reads; writes Function-only (approved portfolio copies).
++- Write-once semantics for under-review files (resubmission = new versioned object; old versions quarantined per §8).
++- CORS locked to the app's origins; no wildcard.
++
++## 4. Cloud Functions Authorization
++
++- All callables: `requireAuth` → `requireRole` → input schema validation → state-machine check → write → audit.
++- Webhooks: provider signature verification, timestamp tolerance, idempotency keys, replay protection.
++- Secrets via Secret Manager; least-privilege service accounts per function group **[PROPOSED]**.
++- Structured denial logging (rule/validation failures) feeding anomaly alerts.
++
++## 5. File-Validation Pipeline (defense in depth)
++
++1. Client pre-check (UX): extension + size + type hint.
++2. Storage rules: size cap, content-type allowlist, path binding.
++3. Function trigger on finalize: magic-byte sniffing, re-measure size, compute SHA-256, quarantine on mismatch,
++   record metadata; delete + notify on failure with safe error text.
++4. Admin reviewer guidance: view in sandboxed preview; never download to unmanaged devices **[PROPOSED policy]**;
++   report suspected forgeries via reason codes (no automated genuineness verdict — BR-5).
++
++## 6. Access Control & Administration
++
++### 6.1 Who can access sensitive verification records (default — OD-11 confirms)
++
++| Data | Artisan (own) | Customer | Admin (verification role) | Admin (support) | Auditor |
++|---|---|---|---|---|---|
++| ID files + numbers | Upload + status only | — | ✅ (logged) | — | metadata only |
++| Supporting evidence | Upload + status only | — | ✅ (logged) | — | metadata only |
++| Guarantor PII | Status + own submitted copy* | — | ✅ (logged) | — | metadata only |
++| Reviewer notes | — (guidance text only) | — | ✅ | — | ✅ |
++| Bookings | Received only | Own only | Support cases (logged) | ✅ (logged) | metadata only |
++| Audit logs | — | — | — | — | ✅ |
++
++`*` The artisan necessarily knows what they typed; the rule is they cannot *retrieve* the stored guarantor doc
++after submission except via a fresh authenticated outcome view showing status only. Final shape confirmed in OD-11.
++
++### 6.2 Admin levels **[PROPOSED]** (confirm in OD-11)
++
++`support` (bookings, profiles) · `verifier` (+ verification materials, decisions) · `superadmin` (+ admin grants,
++suspension, retention actions). MVP may start with verifier+superadmin only.
++
++### 6.3 Admin provisioning (no self-appointment)
++
++1. First superadmin bootstrapped out-of-band (documented ceremony, two-person integrity **[PROPOSED]**).
++2. Further grants via superadmin-only Function; every grant/revoke audit-logged with justification.
++3. Quarterly access review **[PROPOSED]**; dormant accounts revoked.
++
++## 7. Privacy Controls
++
++- **Minimization:** collect only FR-IDV-5 / FR-GUA-1 fields; portfolio images screened for incidental PII
++  (visible addresses/plates blurred or rejected **[PROPOSED]**).
++- **Consent records:** versioned consent artefacts (`consents/*`); guarantor consent declaration mandatory before
++  guarantor submission; no guarantor contact outside the approved process.
++- **Disclosure discipline:** public serializer allowlist (tested); error-message review (no PII in errors/logs);
++  support tooling masks PII by default **[PROPOSED]**.
++- **Data-subject rights:** correction/deletion request flow (user flows §2.4), honored subject to retention
++  obligations; response SLA **[OWNER DECISION — OD-10]**.
++- **No liability language** about guarantors anywhere in product copy or records (FR-GUA-5) until legal review passes.
++
++## 8. Retention & Secure Deletion (schedule durations OD-10; mechanism mandatory)
++
++| Data class | Proposed retention (all [PROPOSED] — OD-10 sets final) | Deletion method |
++|---|---|---|
++| Approved artisan: ID/evidence/guarantor | Duration of active listing + **[PROPOSED]** 12 months after delisting | Crypto-erasure/overwrite + audit certificate |
++| Rejected/withdrawn applicants: ID/evidence/guarantor | **[PROPOSED]** 90 days quarantine (appeal window, OD-08/09) then delete | Same as above |
++| Resubmission superseded files | **[PROPOSED]** 30 days then delete | Same |
++| Bookings (completed/cancelled) | **[PROPOSED]** 24 months for dispute handling | Anonymize parties, keep aggregates |
++| Audit logs | **[PROPOSED]** 36 months, tamper-evident | Restricted purge with dual control |
++| Notifications | **[PROPOSED]** 12 months | Routine purge |
++| Backups | Aligned to above (oldest restorable backup ≤ longest retention + cycle) | Expire backups accordingly |
++
++Jobs run on schedule; every deletion writes a certificate entry to the audit log. **No sensitive documents are
++retained indefinitely.** Until OD-10 is resolved, ship with these proposed values documented as interim.
++
++## 9. Nigerian Data-Protection Requirements (confirmation required)
++
++The following are **flagged for confirmation against current authoritative sources and qualified advice** —
++this plan states no legal conclusions:
++
++1. Applicability of the **Nigeria Data Protection Act (NDPA) 2023** and current **NDPC** guidance to TechFix.ng
++   as a data controller/processor, including registration/filing and Data Protection Officer expectations.
++2. Lawful bases for processing artisan ID data, guarantor third-party data, and customer booking data
++   (consent design, contract, legitimate interests).
++3. Cross-border transfer implications of the chosen cloud region(s) (data residency expectations).
++4. Data-subject rights procedures and response timelines under current NDPC guidance.
++5. Breach-notification obligations and timelines.
++6. Sector-specific rules (if any) for handling NIN data and guarantor personal data.
++7. Record-keeping (ROPA-equivalent) and privacy-notice content requirements.
++
++**Action:** engage qualified Nigerian counsel/DPO advisor before production launch; track as backlog blocker.
++The in-product privacy notice, consent wordings, and guarantor declaration text are **legal-review gates** —
++no placeholder legal language ships to production.
++
++## 10. Security Test & Review Gates (map to `07-test-plan.md`)
++
++- Rules/storage emulator suites green on every PR; upload-abuse + URL-expiry suites in CI.
++- Pre-launch: dependency audit, secrets scan, PII-leak scan of public surfaces, error-message review,
++  admin-access review, backup/restore drill, incident-response runbook walkthrough.
++- Post-launch **[PROPOSED]**: annual penetration test; quarterly access + retention-compliance review.
+diff --git a/docs/07-test-plan.md b/docs/07-test-plan.md
+new file mode 100644
+index 0000000..8312254
+--- /dev/null
++++ b/docs/07-test-plan.md
+@@ -0,0 +1,151 @@
++# TECHFIX.NG — Test Plan & Acceptance Tests
++
++**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++
++Test layers: **rules-emulator unit tests** (Firestore/Storage) · **Function integration tests** (authz, transitions,
++webhooks) · **end-to-end acceptance tests** (the 16 required tests below + supporting suite) · **privacy-leak scans**
++(public surfaces) · **abuse tests** (uploads, URL expiry, rate limits). All 16 required tests are launch-gating.
++
++---
++
++## 1. Required Acceptance Tests (T-01 … T-16)
++
++### T-01 — Unauthenticated customer attempts to book an artisan
++**Steps:** As a visitor on an approved artisan's public profile, click "Book Artisan".
++**Expected result:** ✅ Redirected to login/registration with the booking intent preserved
++(e.g. `/login?next=/artisans/{id}/book`); **no booking is created**; after successful authentication the customer
++returns to the intended artisan profile/booking flow. `next` values outside the allowlist fall back to home
++(no open redirect).
++
++### T-02 — Authenticated customer books an artisan successfully
++**Steps:** As a logged-in customer on an approved, non-suspended artisan's profile, complete the booking form with
++valid data and submit.
++**Expected result:** ✅ Exactly one booking is created with `customerId == auth.uid`, `artisanId` correct,
++status `pending`, and a complete audit/status-history entry; customer sees a confirmation; artisan is notified;
++server-side validation (not client data) determined the stored values. Double-submit creates no duplicate (idempotency).
++
++### T-03 — Customer attempts to read another customer's booking
++**Steps:** As customer B (authenticated), request customer A's booking detail (URL + direct API/rules read).
++**Expected result:** ✅ Denied at every layer (UI shows 404-equivalent; rules deny; Function denies); response
++reveals **neither the booking's existence nor any of its contents** (no oracle via timing/message differences beyond
++negligible noise). Denial is logged.
++
++### T-04 — Artisan attempts to publish their own profile before approval
++**Steps:** As an authenticated artisan whose application is incomplete/unapproved, attempt to publish via UI affordances
++(if any), direct Firestore writes to `publicArtisans/*` / `isPubliclyVisible`, and crafted Function calls.
++**Expected result:** ✅ All attempts fail (no publish affordance exists; direct writes denied by rules; Function
++rejects); artisan remains absent from public listings/search; attempts are logged.
++
++### T-05 — Artisan submits an invalid or prohibited file
++**Steps:** Attempt uploads of: executable (`.exe`), script renamed to `.pdf`, oversized file (> 5 MB **[PROPOSED]**),
++wrong MIME vs extension, empty file, and a valid control file.
++**Expected result:** ✅ Every invalid file is rejected with a specific, actionable error (type/size/network) at the
++earliest layer, quarantined or never persisted, and never stored in a public location; status stays `not_submitted`
++(or prior state unchanged); the valid control file succeeds and enters `pending_review` with hash metadata recorded.
++
++### T-06 — Unauthorized user attempts to access an identity document
++**Steps:** As (a) another artisan, (b) a customer, (c) a visitor, (d) support-level admin without verification role —
++attempt to read ID file bytes, ID metadata, and ID numbers via app, direct Storage reads, and direct Firestore reads.
++**Expected result:** ✅ All denied; direct Storage reads of `private/**` always fail; no signed URL is minted for
++unauthorized callers; no ID content/number appears in any response; attempts are audit-logged. (Authorized verifier
++access succeeds and is itself logged — covered in T-15.)
++
++### T-07 — Unauthorized user attempts to access guarantor information
++**Steps:** As (a) the artisan via retrieval APIs, (b) another artisan, (c) a customer, (d) non-verification admin —
++attempt to read the guarantor document/fields.
++**Expected result:** ✅ All denied (artisan sees only their pipeline `status` + guidance, not stored guarantor PII);
++no guarantor detail appears on any public surface or in any unauthorized response; attempts audit-logged.
++
++### T-08 — Artisan attempts to change their own verification status
++**Steps:** As the artisan, attempt direct writes to `identityVerificationStatus`, `additionalVerificationStatus`,
++`guarantorVerificationStatus`, `accountApprovalStatus`, `paymentStatus`, and crafted "approve" Function calls.
++**Expected result:** ✅ All rejected (rules deny; Function rejects non-admin callers); statuses unchanged;
++attempts audit-logged. Only the admin-only decision Function (T-15) can effect these transitions.
++
++### T-09 — Artisan has paid but has incomplete identity verification
++**Steps:** Fixture: `paymentStatus=verified`, `identityVerificationStatus ∈ {not_submitted, pending_review}`,
++other scopes incomplete. Check public listing/search/profile, booking creation, and artisan dashboard copy.
++**Expected result:** ✅ Artisan is **absent** from all public surfaces; booking creation against them fails with a
++safe message; dashboard shows "Payment received — verification pending" (or equivalent) with next steps; **payment
++alone never publishes**.
++
++### T-10 — Artisan has completed identity verification but has no recorded guarantor approval
++**Steps:** Fixture: identity `verified`, `guarantorVerificationStatus ∈ {not_submitted, pending_review,
++contacted_pending}` (no `verified`). Check public surfaces, booking creation, dashboard copy.
++**Expected result:** ✅ Artisan remains **unpublished** and unbookable; dashboard directs the artisan to complete the
++guarantor step (and any consent confirmation the approved policy requires); no guarantor PII is exposed to justify
++the state — status + guidance only.
++
++### T-11 — Artisan has completed all verification requirements but is awaiting administrator approval
++**Steps:** Fixture: payment verified + identity verified + additional approved + guarantor verified, but
++`accountApprovalStatus=in_review` (final approval pending). Check public surfaces, booking creation, dashboard copy.
++**Expected result:** ✅ Artisan remains **unpublished** and unbookable; dashboard shows "Under final review";
++publication occurs only after the final admin approval (T-12).
++
++### T-12 — Administrator approves a fully compliant artisan
++**Steps:** As a verification-authorized admin with a fresh session, approve the T-11 fixture via the decision Function
++(final scope), with mandatory reason/notes.
++**Expected result:** ✅ `accountApprovalStatus=approved`, `isPubliclyVisible=true`, public projection created with
++**public-only fields**; artisan appears in listings/search; bookings can be created; artisan notified; decision +
++publication + notification all audit-logged with actor, timestamp, and reason.
++
++### T-13 — Rejected artisan attempts to appear in public search results
++**Steps:** Fixture: rejected artisan (any scope) attempts profile access via search, listing filters, guessed
++deep-links, and crafted API queries.
++**Expected result:** ✅ Artisan appears in **no** public result set; direct profile deep-link returns the safe
++"unavailable" state with no private leakage; rejection notification was sent; any resubmission/appeal affordances
++match exactly the owner-approved policy (OD-08/09) — nothing more.
++
++### T-14 — Suspended artisan attempts to accept a new booking
++**Steps:** Fixture: previously approved artisan is suspended (reason recorded). Attempt: artisan-side "accept" actions
++on new booking requests; customer-side new booking creation; visibility checks.
++**Expected result:** ✅ Suspended artisan is immediately absent from public surfaces; new booking creation fails
++safely; no new "accept" action succeeds; existing bookings behave per the approved suspension policy (OD-12);
++suspension/unsuspension are audit-logged.
++
++### T-15 — Authorized administrator reviews a document and records a decision
++**Steps:** As a verification-authorized admin: open review queue, view a private document via the short-lived viewer,
++record an approve and (on a second fixture) a reject/request-info decision with mandatory notes.
++**Expected result:** ✅ Private material renders only in the authorized, expiring viewer; each file access is
++audit-logged; decisions lacking mandatory reason/notes are rejected; valid decisions update exactly the scoped
++status, write a review record + audit entry, recompute publication, and notify the artisan with guidance text only
++(no internal notes). Stale-session decision attempts require re-authentication.
++
++### T-16 — Applicant requests correction or deletion of personal information
++**Steps:** As an artisan applicant (and separately a customer), submit a correction request and a deletion request;
++admin processes each per the retention schedule.
++**Expected result:** ✅ Requests are acknowledged and tracked; corrections apply to the stated fields (audit-logged);
++deletions remove in-scope data (files + metadata) subject to retention obligations, with a deletion certificate in
++the audit log; where retention lawfully requires keeping data, the outcome notice states the basis and the scheduled
++deletion date. No silent drops: every request reaches a communicated outcome.
++
++---
++
++## 2. Supporting Suites (required, non-exhaustive)
++
++| Suite | Coverage | Gate |
++|---|---|---|
++| Route-protection matrix | Every row of `03-architecture.md` §3.1, all four roles | Launch |
++| Rules-emulator allow/deny inventory | Each granted operation + representative denials | Every PR |
++| Booking state machine | All legal transitions + rejection of illegal ones | Launch |
++| Payment verification | Forged/tampered/replayed webhooks rejected; idempotent retries; client callbacks untrusted | Launch |
++| Upload abuse | Polyglots, bombs, MIME spoofing, path traversal, overwrite attempts | Launch |
++| Signed-URL expiry | Access before/after TTL; revoked sessions; unauthorized mint attempts | Launch |
++| Privacy-leak scan | Crawl public pages/APIs; assert zero matches for ID numbers, guarantor phones/names, internal statuses, storage paths | Every PR + pre-launch |
++| Error-message review | Auth/validation/404 messages reveal no PII or existence oracles | Pre-launch |
++| Notification suite | Every transition in PRD §3.10 fires exactly-once to the right parties | Launch |
++| Retention/deletion jobs | Quarantine → delete → certificate; backup-expiry alignment | Launch (with interim OD-10 values if undecided) |
++| Accessibility | WCAG 2.1 AA on public + booking + onboarding flows | Pre-launch |
++| Performance smoke | PRD NFR-3 budgets on staging | Pre-launch |
++
++## 3. Test Data & Environments
++
++- Seeded fixtures per state combination in the publication rule (all 2⁵-relevant combos covered by T-09…T-12 + unit tests).
++- Synthetic PII only in dev/staging; production verification tests use redacted, consenting pilot accounts.
++- Payment tests run against provider sandbox (OD-07); no live-money tests pre-launch.
++
++## 4. Entry / Exit Criteria
++
++- **Entry (per phase):** fixtures + rules tests written before the feature (groomed in `08-implementation-backlog.md`).
++- **Exit (launch):** all 16 tests pass on staging + production-parity check; privacy-leak scan clean; no unresolved
++  launch-gating owner decision without documented deferral (see `09-owner-decisions.md`).
+diff --git a/docs/08-implementation-backlog.md b/docs/08-implementation-backlog.md
+new file mode 100644
+index 0000000..697fab3
+--- /dev/null
++++ b/docs/08-implementation-backlog.md
+@@ -0,0 +1,151 @@
++# TECHFIX.NG — Implementation Backlog
++
++**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++
++> **No application code until these documents are reviewed and approved.** When approved, work proceeds top-to-bottom
++> by epic dependency. Every story is small, testable, and carries acceptance criteria. Global Definition of Done (DoD)
++> is in §9; story-specific criteria add to it, never replace it.
++
++Story ID key: `FND` foundations · `AUTH` auth/routing · `PUB` public directory · `ONB` artisan onboarding ·
++`IDV` identity verification · `EVD` additional evidence · `GUA` guarantor · `PAY` payments · `ADM` admin console ·
++`BOK` booking · `NTF` notifications · `SEC` security/privacy · `QA` test/launch hardening.
++
++---
++
++## Epic 1 — Foundations (Phase 0)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| FND-1 | Provision dev/staging/prod Firebase projects, Hosting, CI, emulators | All envs deploy from CI; emulator suite runs per PR | — |
++| FND-2 | Secret management + provider sandbox accounts | Zero secrets in repo/client; sandbox keys in Secret Manager | FND-1 |
++| FND-3 | Structured logging + alerting baseline | Auth/payment/transition logs queryable; webhook-failure alert fires in staging | FND-1 |
++| FND-4 | Owner-decision workshop + decision log | OD-01…OD-12 resolved or formally deferred with defaults (see `09-owner-decisions.md`) | — (blocks exits) |
++| FND-5 | Marketplace/visual reference study + original TechFix design tokens (PRD §1.4) | Study notes trace each adopted pattern to PRD §1.4.1/§1.4.2 with re-verified observations; original color/type/spacing tokens with WCAG-AA contrast evidence; zero copied branding, copy, images, or code; fixtures contain no invented business info, real artisan records, testimonials, or credentials | — (consumed by PUB-3, ONB-2, BOK-1) |
++
++## Epic 2 — Auth, roles & route protection (Phase 1)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| AUTH-1 | Email/password register + login + email verification [PROPOSED] | Register/login/logout; weak-password + duplicate-email errors; verified flag mirrored | FND-1 |
++| AUTH-2 | Custom-claims roles (`customer/artisan/admin`) + grant procedure | Claims set only by trusted code; no self-elevation (tested) | AUTH-1 |
++| AUTH-3 | Intent-preserving auth gate (`?next=`, allowlisted) | T-01 passes; open-redirect attempts fall back safely | AUTH-1 |
++| AUTH-4 | Client route guards per matrix §3.1 + 404-equivalence | Matrix suite green; unauthorized routes 404/403 without oracles | AUTH-2 |
++| AUTH-5 | Session-expiry handling + draft preservation | Expired session mid-booking → re-auth → resume (tested) | AUTH-3 |
++
++## Epic 3 — Public directory (Phase 1)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| PUB-1 | `publicArtisans` projection writer (Function) + publication-rule evaluator | Projection exists iff rule holds; regression unpublishes immediately (T-09…T-11) | AUTH-2 |
++| PUB-2 | Public serializer allowlist + leak tests | Privacy-leak scan green; serializer unit tests pin the field set | PUB-1 |
++| PUB-3 | Listing/search/filter UI + profile page | Search by trade/LGA; profile shows public-only fields; "Book Artisan" CTA gated (T-01) | PUB-1 |
++
++## Epic 4 — Artisan onboarding: account → profile (Phase 2)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| ONB-1 | Artisan registration + role assignment | Artisan account created; cannot access customer-only or admin routes | AUTH-2 |
++| ONB-2 | Profile builder (draft, validated, never public) | Draft persists; validation errors inline; nothing reaches public surfaces (T-04) | ONB-1 |
++| ONB-3 | 11-step progress tracker | Steps reflect server state; payment ≠ published copy verified (T-09) | ONB-2 |
++
++## Epic 5 — Identity-document submission (Phase 2)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| IDV-1 | Upload UI (doc-type selector per OD-01, requirements, progress, errors) | Copy matches approved doc list; errors actionable | ONB-2 |
++| IDV-2 | Storage rules: private path, allowlist, 5 MB cap [PROPOSED], write-once | Emulator tests: valid writes pass; all T-05 cases denied | FND-1 |
++| IDV-3 | Finalize Function: magic-byte sniff, hash, metadata, quarantine-on-fail | Spoofed/oversize files quarantined; metadata recorded; status → `pending_review` | IDV-2 |
++| IDV-4 | Minimal ID fields capture (FR-IDV-5) + validation | Only approved fields stored; numbers never in public docs | IDV-1 |
++| IDV-5 | Resubmission versioning | New version created; old quarantined; count tracked (policy OD-08) | IDV-3 |
++
++## Epic 6 — Additional verification evidence (Phase 3)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| EVD-1 | Evidence capture UI (portfolio, experience, qualifications, licences, references) | All five types submittable with guidance | ONB-2 |
++| EVD-2 | Per-trade mandatory/optional enforcement (OD-03 matrix) | Correct required/optional behavior per trade (tested incl. no-licence trades) | EVD-1 |
++| EVD-3 | Credential-checked flags → public badges pipeline | Badges appear only from `credentialChecked=true` (BR-6 test) | PUB-1, EVD-2 |
++| EVD-4 | Admin-requested-evidence loop | Admin can request extras; artisan notified; resubmit path works | ADM-2 |
++
++## Epic 7 — Guarantor workflow (Phase 3)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| GUA-1 | Guarantor capture form (name, phone, relationship + OD-04 extras) | Validation; no liability language anywhere (copy test) | ONB-2 |
++| GUA-2 | Consent-declaration record (versioned wording, timestamp) | Submission blocked until declaration recorded; record in `consents/*` | GUA-1 |
++| GUA-3 | Guarantor doc rules: verification-role-only reads, artisan status-only | T-07 passes; emulator inventory updated | GUA-1 |
++| GUA-4 | Independent-confirmation hooks behind policy flag (OD-05/06) | Flag off → skipped; flag on → required channel works (or deferred build if decided post-MVP) | GUA-2 |
++| GUA-5 | Guarantor contact record fields + admin procedure checklist | Contact/outcome recordable only via approved process (T-15 scope) | ADM-2 |
++
++## Epic 8 — Payments (Phase 4)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| PAY-1 | Provider integration interface + chosen provider (OD-07) | Sandbox charge succeeds end-to-end | FND-2 |
++| PAY-2 | Webhook verification Function (signature, idempotency, replay) | Forged/replayed webhooks rejected; retries safe | PAY-1 |
++| PAY-3 | `paymentStatus` transitions + receipt UX (verified ≠ published) | T-09 passes; receipt shows; no publish | PAY-2 |
++| PAY-4 | Failure/retry UX + `failed` handling | Failed payments recoverable; no stuck `pending` without alert | PAY-2 |
++| PAY-5 | Refund-status recording hooks (policy OD-09) | Statuses recordable; behavior matches policy flags | PAY-3 |
++
++## Epic 9 — Admin review & approval console (Phase 5)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| ADM-1 | Review queues + filters (per-scope pending, resubmissions, flagged) | Queues reflect aggregate statuses; pagination | IDV-3, EVD-2, GUA-3 |
++| ADM-2 | Decision Function (admin-only, fresh token, mandatory notes, audit) | T-15 passes; unauthorized/stale/incomplete attempts rejected + logged | AUTH-2 |
++| ADM-3 | Short-lived private-file viewer + per-access audit | T-06 passes for unauthorized; authorized views logged; TTL enforced | IDV-3 |
++| ADM-4 | Final-approval gating (all scopes verified + payment verified) | T-11 blocks; T-12 publishes (T-12…T-13 pass) | ADM-2, PUB-1 |
++| ADM-5 | Reject / request-info flows + artisan notifications | T-13 passes; guidance-only copy (no internal notes leak) | ADM-2 |
++| ADM-6 | Suspend / unsuspend + immediate unpublish + booking block | T-14 passes; OD-12 edge copy per policy | ADM-2 |
++| ADM-7 | Admin provisioning + levels (OD-11) + access-review report | No self-grant; grants/revokes logged | AUTH-2 |
++
++## Epic 10 — Customer booking (Phase 6)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| BOK-1 | Booking form + client validation + error states | Invalid inputs blocked inline with clear messages | PUB-3, AUTH-3 |
++| BOK-2 | `createBooking` Function (auth, visibility snapshot, validation, idempotency) | T-02 passes; duplicates impossible; unpublished target rejected | BOK-1, PUB-1 |
++| BOK-3 | Booking rules: owner/artisan/admin reads; Function-only status | T-03 passes; emulator inventory updated | BOK-2 |
++| BOK-4 | Booking history + detail + status timeline | Own bookings listed with statuses; others 404 (T-03) | BOK-2 |
++| BOK-5 | Transitions (confirm/decline/cancel/complete) + suspension block | State-machine suite + T-14 pass | BOK-2, ADM-6 |
++| BOK-6 | Contact-disclosure rules (OD-11) | Exactly the approved fields visible per party (tested) | BOK-4 |
++
++## Epic 11 — Notifications (Phases 5–6)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| NTF-1 | In-app notification center + triggers (verification + booking events) | Each PRD §3.10 event fires exactly once to correct parties | ADM-2, BOK-2 |
++| NTF-2 | Email fan-out [PROPOSED] (+ SMS [PROPOSED] if approved) | Delivery in staging; no PII beyond approved content | NTF-1 |
++
++## Epic 12 — Security, privacy & retention (continuous; exit Phase 7)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| SEC-1 | Rules/storage inventory + emulator suites in CI | Green on every PR; coverage of allow/deny matrix | FND-1 |
++| SEC-2 | Upload-abuse + signed-URL-expiry suites | Threats T-04/T-08 mitigations evidenced | IDV-3, ADM-3 |
++| SEC-3 | Privacy-leak scan automation (public crawl) | Zero sensitive matches; runs per PR + pre-launch | PUB-2 |
++| SEC-4 | Retention jobs (quarantine → delete → certificate) per §8 schedule | Jobs run on fixtures; interim OD-10 values documented | IDV-3, GUA-3 |
++| SEC-5 | Correction/deletion request flow (submit → track → outcome) | T-16 passes | ADM-2 |
++| SEC-6 | Legal-review gates: privacy notice, consent wordings, guarantor declaration | Signed-off texts only; blockers tracked to OD-04/05/06/10 | — |
++| SEC-7 | Nigerian data-protection confirmation memo (counsel/DPO) | §9 questions answered by qualified advice before launch | — |
++
++## Epic 13 — Launch hardening (Phase 7)
++
++| ID | Story | Acceptance criteria | Depends |
++|----|-------|---------------------|---------|
++| QA-1 | Full 16-test acceptance run on staging + prod-parity check | All pass; evidence archived | All above |
++| QA-2 | Dependency/secret/PII audits + error-message review | Zero criticals; review signed | SEC-1…3 |
++| QA-3 | A11y (AA) + performance budgets (NFR-3) | Public/booking/onboarding pass budgets | PUB-3, BOK-1, ONB-2 |
++| QA-4 | Runbooks (incidents, webhooks, retention, restore drill) | Drill completed; on-call paths defined | FND-3 |
++| QA-5 | Launch-gate audit (G-1…G-9) + owner sign-off | Gates evidenced; sign-off recorded | QA-1 |
++
++---
++
++## 9. Global Definition of Done (every story)
++
++1. Acceptance criteria demonstrated on a review environment.
++2. Rules/Function authorization tests added and green (no story weakens the allow/deny inventory).
++3. Privacy check: no new PII collected, stored, or displayed beyond the approved schema; public serializer unaffected or re-tested.
++4. Audit logging added for sensitive actions the story introduces.
++5. Docs updated (this backlog checked off; affected PRD/architecture/schema sections revised).
++6. No unresolved **[OWNER DECISION]** dependency without a recorded interim default + owner acknowledgment.
+diff --git a/docs/09-owner-decisions.md b/docs/09-owner-decisions.md
+new file mode 100644
+index 0000000..f45422c
+--- /dev/null
++++ b/docs/09-owner-decisions.md
+@@ -0,0 +1,31 @@
++# TECHFIX.NG — Owner Decisions Required
++
++**Version:** 2.0 · **Date:** 2026-10-21 · **Status:** OPEN — none resolved.
++
++> Concise list of unresolved decisions. This document (and the whole set) **invents no answers**.
++> Each item records: the question, why it matters, the interim default the plan ships with (if any),
++> and what it blocks. Resolve in the Phase 0 workshop or formally defer with a recorded default.
++
++| ID | Decision | Why it matters / blocked work | Interim default (if deferred) |
++|----|----------|-------------------------------|------------------------------|
++| OD-01 | **Which identity documents are acceptable?** (Recommendation: NIN slip/card, voter's card, driver's licence, international passport — §3.4 PRD.) | Blocks IDV-1 UI/validation copy; Phase 2 exit. | Ship with the 4 recommended types clearly labeled "pending final approval"; do not accept others. |
++| OD-02 | **Manual verification or external verification provider?** | Determines review operating model; any vendor integration is post-MVP. | **Manual admin review only** for MVP; make no automation claims. |
++| OD-03 | **Which supporting documents are mandatory for each artisan trade?** (Proposed matrix: PRD §3.5.1.) | Blocks EVD-2 enforcement; Phase 3 exit. | Ship with the proposed matrix labeled interim; admin can always request extras. |
++| OD-04 | **Guarantor policy:** eligibility criteria (age, relationship exclusions, limits), any extra fields beyond name/phone/relationship, and any agreement/declaration text (legal review required). | Blocks GUA-1/GUA-5 final copy; consent wording gate. | Collect name + phone + relationship only; no extra fields; no liability language; no guarantor contact beyond admin-recorded process. |
++| OD-05 | **How is guarantor consent recorded — and must the guarantor independently confirm?** (e.g. OTP, callback, signed declaration.) | Blocks GUA-2/GUA-4 final UX; Phase 3 exit. | Artisan declaration only (versioned + timestamped); independent-confirmation hooks built behind a flag, off by default. |
++| OD-06 | **Must guarantors provide identification or sign a declaration?** (Legal review required for any declaration.) | Blocks guarantor file handling + legal gates. | No guarantor ID/declaration collected; storage path reserved. |
++| OD-07 | **Payment provider choice** (shortlist: Paystack / Flutterwave) **and: are there any verification fees beyond the ₦3,000 registration fee?** | Blocks PAY-1 integration; fee schedule copy. | Build against provider interface; assume **no** extra fees; sandbox until chosen. |
++| OD-08 | **What happens on rejection — corrections, resubmission, appeal?** (Windows, limits, process.) | Blocks ADM-5 copy + resubmission policy flags; Phase 5 exit. | `resubmission_required` loop allowed with count tracking; no formal appeal channel; copy states policy is interim. |
++| OD-09 | **Are refunds permitted, and on what terms?** (Eligibility, window, method — note: fee is paid *before* admin review.) | Blocks PAY-5 behavior + finance handling. | Record `refunded` status capability; issue no refunds until policy set; disclose clearly pre-payment. |
++| OD-10 | **Retention periods** for identity documents, guarantor info, bookings, audit logs — plus data-subject request SLA. (Proposed schedule: security plan §8.) | Blocks SEC-4 final durations; SEC-5 SLA copy. | Ship with proposed interim values, documented as interim. |
++| OD-11 | **Who can access sensitive verification records?** (Confirm access matrix + admin levels + customer/artisan contact-disclosure rules.) | Blocks ADM-7, BOK-6, GUA-3 final masks. | Most restrictive option: verification-role-only; minimal disclosure. |
++| OD-12 | **What happens to existing bookings when an artisan is suspended?** (Complete, cancel, reassign?) | Blocks ADM-6/BOK-5 edge-case copy. | New bookings blocked immediately (mandatory); existing bookings frozen pending decision, with parties notified. |
++
++## Decision log (fill as resolved)
++
++| ID | Decision | Decided by / date | Effective in |
++|----|----------|-------------------|--------------|
++| — | *None yet* | — | — |
++
++**Rule:** no production launch with an OD item neither resolved nor formally deferred with a recorded interim default
++and owner sign-off (PRD acceptance criterion 5; launch-gate audit QA-5).
+diff --git a/docs/10-revision-summary.md b/docs/10-revision-summary.md
+new file mode 100644
+index 0000000..7df43fe
+--- /dev/null
++++ b/docs/10-revision-summary.md
+@@ -0,0 +1,67 @@
++# TECHFIX.NG — Revision Summary (v2.0): Changes, Conflicts & Remaining Decisions
++
++**Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
++**Addendum (v2.1):** PRD gained §1.4 (Worker.NG functional reference + HopeRise visual inspiration, with guardrails:
++no copied branding/assets, no unverified claims, no invented testimonials/records/credentials) and the backlog gained
++FND-5 (reference study + original design tokens). No business policies were decided; OD-01…OD-12 remain unresolved.
++**Instruction honored:** documentation updated; **no application code written.**
++
++---
++
++## 1. Summary of Changes (v1 → v2)
++
++This revision incorporates the confirmed requirements update while preserving all previously confirmed rules
++(one-time ₦3,000 fee, mandatory admin approval, no booking without authentication).
++
++| # | Change | Documents touched |
++|---|--------|-------------------|
++| 1 | **Authenticated customer booking** — account + login required; unauthenticated "Book Artisan" → login/register with intent-preserving return; server-validated identity; per-customer booking isolation; history + statuses + validation + error states | PRD §3.2; Architecture §2–3; Schema §2.10; Flows §2; Tests T-01…T-03; Backlog Epics 2, 10 |
++| 2 | **Mandatory artisan identity verification** — secure upload interface; proposed allowlist (`jpg/png/pdf`, 5 MB); recommended Nigerian ID options (NIN, voter's card, driver's licence, passport) flagged for approval; minimal PII; separate `identityVerificationStatus`; admin review with pending/verified/rejected/resubmission states; never public; no self-approval; no automation claims | PRD §3.4; Roadmap G-2; Schema §2.5; Flows §3; Security §1–5; Tests T-05/T-06/T-08; Backlog Epic 5 |
++| 3 | **Additional artisan verification** — five evidence types; mandatory/optional/trade-specific separation with proposed per-trade matrix; no assumed qualifications; badges only from checked credentials | PRD §3.5; Schema §2.6; Backlog Epic 6 |
++| 4 | **Mandatory guarantor requirement** — name/phone/relationship (+ approved extras); separate `guarantorVerificationStatus` + contacted record + admin notes; consent-declaration workflow; independent-confirmation question flagged; restricted access; never public; no liability assumptions; legal-review gates | PRD §3.6; Schema §2.7–2.8; Flows §3–4; Security §6–7; Tests T-07/T-10; Backlog Epic 7 |
++| 5 | **11-step artisan registration & approval workflow** with publication rule (§3.8 PRD): payment verified + identity verified + additional approved + guarantor verified + admin approved + not suspended; rejection/resubmission/appeal/refund flagged as owner decisions | PRD §3.3/3.8; Roadmap phases 2–5; Flows §3; Tests T-09…T-14 |
++| 6 | **Data model revision** — pipeline aggregate (`applications/*`), restricted subcollections (identityDocs, evidence, guarantor, consents, reviews), public-only projection, bookings ownership, append-only audit logs, status-transition allowlists, private Storage layout with short-lived access | Schema (all); Architecture §3–4 |
++| 7 | **Security/privacy/retention update** — 12-item threat model; default-deny rules strategies; file-validation pipeline; admin provisioning; access matrix; interim retention schedule; NDPA-2023 confirmation questions for qualified advice | Security plan (all); Backlog Epic 12 |
++| 8 | **MVP roadmap revision** — 9 launch gates (G-1…G-9) incl. authenticated booking, verification, guarantor, separate states, private storage, auth/privacy tests; phased plan 0–7 with decision dependencies | Roadmap (all) |
++| 9 | **16 required acceptance tests** with expected results + supporting suites (rules inventory, state machines, abuse, leak scans, a11y, perf) | Test plan (all) |
++| 10 | **Owner-decisions register** — 12 items (OD-01…OD-12), no invented answers, interim defaults + blockers recorded | `09-owner-decisions.md` |
++| 11 | **Implementation backlog** — 13 epics, ~50 small testable stories with acceptance criteria, dependencies, and a global Definition of Done | `08-implementation-backlog.md` |
++
++### Preserved without change
++BR-1 one-time ₦3,000 fee · BR-2 mandatory admin approval · BR-3/4 auth-gated booking + public browsing ·
++BR-5 no genuineness-by-upload · BR-6 no unchecked certification claims · BR-7 no assumed guarantor liability.
++
++---
++
++## 2. Conflicts & Tensions Identified
++
++| # | Conflict / tension | Where it bites | How this revision handles it (decision needed) |
++|---|--------------------|----------------|-----------------------------------------------|
++| C-1 | **Fee is paid (step 6) before admin review (steps 8–10)** — so rejected applicants will have paid ₦3,000. This collides with fairness expectations and demands a refund/rejection policy. | PRD FR-ART-2; PAY-5; ADM-5 | Rejection/resubmission/appeal/refund made explicit owner decisions (OD-08/09); interim: disclose pre-payment, record statuses, issue no refunds until policy set. Alternative orderings (review-before-pay) were **not** adopted because the 11-step sequence fixes payment at step 6 — owner may revisit. |
++| C-2 | **Guarantor PII vs. need-to-know vs. artisan transparency** — the artisan submits the data but must not retrieve it afterwards; support staff must not see it; verifiers must. | Schema §2.7; Security §6.1 | Restrictive default (verification-role-only + artisan status-only); final masks await OD-11. |
++| C-3 | **Consent burden vs. conversion** — independent guarantor confirmation (OTP/callback/declaration) strengthens integrity but adds friction and cost (SMS, ops). | PRD FR-GUA-3 | Built as a policy flag (GUA-4); default off (declaration only) until OD-05/06 resolve. |
++| C-4 | **Evidence rigor vs. informal trades** — many artisans lack formal qualifications/licences; uniform mandates would exclude legitimate workers. | PRD §3.5 | Per-trade matrix separates mandatory/optional (OD-03); portfolio + experience mandatory for all **[PROPOSED]**. |
++| C-5 | **Review thoroughness vs. launch speed** — manual review of every ID + evidence + guarantor is operationally heavy with no automation in MVP. | Roadmap Phase 5; OD-02 | Accepted for MVP (honest posture, BR-5); resourcing/queues sized in operations planning; automation post-MVP only. |
++| C-6 | **Retention for disputes vs. privacy minimization** — rejected-applicant data is both a liability to keep and potentially needed for appeals/fraud prevention. | Security §8 | Quarantine-then-delete schedule with interim durations; final periods OD-10. |
++| C-7 | **Disclosure vs. safety** — customers need enough artisan contact info to transact; artisans need protection from exposure. | BOK-6; OD-11 | Exact disclosure fields deferred to OD-11; public profiles carry coarse location only. |
++
++No logical contradictions were found between the new requirements and the preserved business rules — the items above
++are policy/sequencing tensions requiring owner judgment, not inconsistencies to correct unilaterally.
++
++---
++
++## 3. Remaining Owner Decisions (see `09-owner-decisions.md`)
++
++OD-01 accepted ID documents · OD-02 manual vs provider verification · OD-03 per-trade evidence mandates ·
++OD-04 guarantor eligibility/extras/agreement · OD-05 consent recording + independent confirmation ·
++OD-06 guarantor ID/declaration · OD-07 payment provider + extra fees · OD-08 rejection/resubmission/appeal ·
++OD-09 refunds · OD-10 retention periods + request SLA · OD-11 access matrix + disclosure rules · OD-12 suspension
++effects on existing bookings — plus qualified legal review of consent/declaration/privacy texts and a
++Nigerian data-protection confirmation memo (Security §9) before production launch.
++
++## 4. Recommended Next Steps
++
++1. Owner reviews this document set and resolves/defers OD-01…OD-12 in a Phase 0 workshop (FND-4).
++2. Engage qualified Nigerian counsel/DPO advisor on Security §9 questions and legal-review gates (SEC-6/7).
++3. Confirm payment provider (OD-07) and stand up sandbox.
++4. Approve documents in writing → then, and only then, begin Phase 1 implementation per the backlog.
