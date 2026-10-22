@@ -1,6 +1,6 @@
 # TECHFIX.NG — Database & Storage Design (Firestore + Cloud Storage)
 
-**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Version:** 2.1 (OD-01/OD-02 recorded as owner-resolved 2026-10-22) · **Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
 
 > Design rule: sensitive document *contents* live in private Cloud Storage; Firestore holds **metadata +
 > private storage references + statuses** in restricted collections. General-purpose/public documents never
@@ -100,10 +100,10 @@ Rules: artisan reads own aggregate; **no direct status writes** by artisan; admi
 
 | Field | Type | Notes |
 |---|---|---|
-| `documentType` | enum from OD-01 list | e.g. `nin_slip\|voters_card\|drivers_licence\|passport` **[PROPOSED values]** |
+| `documentType` | enum — OD-01 approved list (resolved 2026-10-22) | `nin_slip\|voters_card\|drivers_licence\|passport` — exactly these four; no others accepted |
 | `storagePath` | string | Private path, e.g. `private/artisans/{id}/identity/{docId}.pdf` — **never a public URL** |
 | `fileName`, `mimeType`, `sizeBytes`, `sha256` | | Integrity + validation record |
-| `idNumberLast4` | string | Only last-4 in Firestore **[PROPOSED]**; full number only if OD-01 process requires, still never public |
+| `idNumberLast4` | string | Only last-4 in Firestore **[PROPOSED]**; full number captured only where the approved manual-review workflow demonstrably requires it — still never public |
 | `fullNumber` | string (restricted) | Only if required by approved process; admin + auditor access, never returned to client except reviewer view |
 | `nameOnDocument`, `expiryDate` | | Minimal necessary fields |
 | `status` | mirrors identity scope | `pending_review\|verified\|rejected\|resubmission_required` |
@@ -152,7 +152,12 @@ aggregate/outcome view, not this document. No liability language stored (FR-GUA-
 | `scope` | `identity\|additional\|guarantor\|final\|suspension` | |
 | `decision` | `approve\|reject\|request_info\|suspend\|unsuspend` | |
 | `reasonCode`, `notes` (admin-only), `guidanceForArtisan` (shareable) | | |
-| `decidedBy`, `decidedAt` | | Mirrored to `auditLogs` |
+| `decidedBy`, `decidedAt` | | Reviewer + timestamp; mirrored to `auditLogs` |
+
+Identity-scope reviews are **manual administrator decisions** (OD-02 resolved 2026-10-22). Every review record
+captures reviewer (`decidedBy`), timestamp (`decidedAt`), outcome (`decision`), and reason (`reasonCode` + `notes`),
+mirrored to append-only `auditLogs/*`. Review records must never assert automated, biometric, external-provider, or
+government-database validation.
 
 ### 2.10 `bookings/{bookingId}`
 
@@ -209,7 +214,10 @@ booking:      pending → confirmed | declined | cancelled ; confirmed → compl
 ```
 
 Illegal transitions (e.g. artisan self-verify, publish without approval, skip contacted-state where policy requires
-it) are rejected and logged.
+it) are rejected and logged. Identity-scope transitions are effected only by the authorized manual-review decision
+Function (OD-02 resolved 2026-10-22; verification role, fresh token); applicant-invoked or direct-write transitions
+are rejected and logged. Identity approval alone never publishes — the publication gate (PRD §3.8) requires payment
+verified + additional approved + guarantor verified + final admin approval + not suspended.
 
 ---
 

@@ -1,6 +1,6 @@
 # TECHFIX.NG — Implementation Backlog
 
-**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Version:** 2.1 (OD-01/OD-02 recorded as owner-resolved 2026-10-22; added IDV-6) · **Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
 
 > **No application code until these documents are reviewed and approved.** When approved, work proceeds top-to-bottom
 > by epic dependency. Every story is small, testable, and carries acceptance criteria. Global Definition of Done (DoD)
@@ -52,11 +52,12 @@ Story ID key: `FND` foundations · `AUTH` auth/routing · `PUB` public directory
 
 | ID | Story | Acceptance criteria | Depends |
 |----|-------|---------------------|---------|
-| IDV-1 | Upload UI (doc-type selector per OD-01, requirements, progress, errors) | Copy matches approved doc list; errors actionable | ONB-2 |
+| IDV-1 | Upload UI (doc-type selector — OD-01 approved list, requirements, progress, errors) | Copy matches the 4 approved doc types exactly; no other types selectable; errors actionable | ONB-2 |
 | IDV-2 | Storage rules: private path, allowlist, 5 MB cap [PROPOSED], write-once | Emulator tests: valid writes pass; all T-05 cases denied | FND-1 |
 | IDV-3 | Finalize Function: magic-byte sniff, hash, metadata, quarantine-on-fail | Spoofed/oversize files quarantined; metadata recorded; status → `pending_review` | IDV-2 |
 | IDV-4 | Minimal ID fields capture (FR-IDV-5) + validation | Only approved fields stored; numbers never in public docs | IDV-1 |
 | IDV-5 | Resubmission versioning | New version created; old quarantined; count tracked (policy OD-08) | IDV-3 |
+| IDV-6 | Manual identity-review decision workflow (OD-02 resolved) | Verification-role-only server-side decision action; reviewer/timestamp/outcome/reason recorded + audit-mirrored; applicant self-decision rejected + logged; identity approval never publishes alone; notifications/badges carry no automated/biometric/external-provider/government claims (T-15, T-17, T-18 pass) | ADM-2, IDV-3 |
 
 ## Epic 6 — Additional verification evidence (Phase 3)
 
@@ -133,7 +134,7 @@ Story ID key: `FND` foundations · `AUTH` auth/routing · `PUB` public directory
 
 | ID | Story | Acceptance criteria | Depends |
 |----|-------|---------------------|---------|
-| QA-1 | Full 16-test acceptance run on staging + prod-parity check | All pass; evidence archived | All above |
+| QA-1 | Full acceptance run (16 required tests + T-17/T-18) on staging + prod-parity check | All pass; evidence archived | All above |
 | QA-2 | Dependency/secret/PII audits + error-message review | Zero criticals; review signed | SEC-1…3 |
 | QA-3 | A11y (AA) + performance budgets (NFR-3) | Public/booking/onboarding pass budgets | PUB-3, BOK-1, ONB-2 |
 | QA-4 | Runbooks (incidents, webhooks, retention, restore drill) | Drill completed; on-call paths defined | FND-3 |

@@ -1,6 +1,6 @@
 # TECHFIX.NG — System Architecture
 
-**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Version:** 2.1 (OD-01/OD-02 recorded as owner-resolved 2026-10-22) · **Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
 
 ---
 
@@ -130,6 +130,9 @@ Client guards are **UX only** — every route's data is independently protected 
   the publication rule holds; deletes/omits it the moment any condition regresses.
 - Public search/listing queries **only** `publicArtisans` — incomplete artisans are unreachable by construction,
   not by filter discipline.
+- **Publication gate:** the publication Function re-evaluates the full PRD §3.8 conjunction (payment verified +
+  identity verified + additional approved + guarantor verified + admin approved + not suspended) on every relevant
+  transition; identity approval alone never publishes.
 
 ### 4.2 Booking service (Function-backed)
 
@@ -138,11 +141,18 @@ Client guards are **UX only** — every route's data is independently protected 
 - Transitions (`confirm/decline/cancel/complete`) validated against the booking state machine; suspended-artisan
   block enforced here (T-14) as well as in rules.
 
-### 4.3 Verification pipeline (Function-backed)
+### 4.3 Verification pipeline (Function-backed) — manual administrator review (OD-02 resolved 2026-10-22)
 
 - `submitIdentityDocument`, `submitEvidence`, `submitGuarantor` (metadata writes; files via resumable private upload).
-- `recordReviewDecision({applicationId, scope: identity|additional|guarantor|final, decision, notes})`:
-  admin-only, fresh token, mandatory notes, audit-logged; drives status fields and publication recompute.
+- **Authorized server-side review actions** (verification-role admins only, fresh token, every call authorized
+  server-side and audit-logged):
+  `recordReviewDecision({applicationId, scope: identity|additional|guarantor|final, decision, reasonCode, notes})`.
+- **Review record (per decision):** reviewer UID + role, timestamp, scope, outcome
+  (`approve|reject|request_info`), reason code + notes, and `before → after` status values — written to
+  `reviews/*` and mirrored to append-only `auditLogs/*`. Applicants can never invoke review actions on their own
+  submissions (authorization rejects; attempts logged).
+- Identity-scope review is **manual**: the Function records the human decision only — it performs no automated
+  genuineness, biometric, or government-database checks, and no product surface may claim otherwise (PRD FR-IDV-10).
 - `requestResubmission` / `recordAppeal` / `recordRefund` exist as recording endpoints; their **policies** are
   owner decisions (OD-08/09) — endpoints enforce whatever policy flags are configured.
 
@@ -176,6 +186,6 @@ Client guards are **UX only** — every route's data is independently protected 
 | ADR-2 | All status transitions via Functions; direct writes denied | Prevents self-approval, self-publish, forged payment states |
 | ADR-3 | Private files never directly readable; short-lived URLs via Function | Prevents leaked-link abuse; enables per-access audit |
 | ADR-4 | Server-side MIME sniffing + allowlist + size cap on uploads | Defense in depth against malicious uploads |
-| ADR-5 | Manual admin review for MVP; no KYC-vendor claim | Honest posture per BR-5; provider decision deferred (OD-02) |
+| ADR-5 | Manual admin review for MVP — owner-decided (OD-02 resolved 2026-10-22); no automated/biometric/vendor/government claims | Honest posture per BR-5; any verification-service integration is post-MVP + new decision |
 | ADR-6 | Payment verification webhook-only, idempotent | Prevents forged payment states |
 | ADR-7 | Intent-preserving auth redirect with allowlisted `next` | Satisfies FR-CUST-2 without open redirects |

@@ -1,7 +1,7 @@
 # TECHFIX.NG — MVP Roadmap
 
-**Version:** 2.0 (Revised — Authenticated Booking, Mandatory Verification & Guarantor Requirements)
-**Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Version:** 2.1 (OD-01/OD-02 recorded as owner-resolved 2026-10-22)
+**Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
 **Companion docs:** PRD (`01-PRD.md`), Architecture (`03-architecture.md`), Backlog (`08-implementation-backlog.md`).
 
 > No application code is to be written until the revised documents are reviewed and approved.
@@ -122,7 +122,7 @@ Dependencies flow downward; a phase begins when its entry criteria are met.
 
 ## 4. Decision Dependencies (what blocks what)
 
-- **OD-01 (accepted ID documents)** blocks Phase 2 UI copy/validation lists — owner must approve before Phase 2 exit.
+- **OD-01 (accepted ID documents) — RESOLVED 2026-10-22:** the 4 approved types unblock Phase 2 UI copy/validation lists.
 - **OD-03 (per-trade evidence policy)** blocks Phase 3 mandatory/optional enforcement.
 - **OD-04/05/06 (guarantor policy, consent recording, independent confirmation)** block Phase 3 consent UX finalization;
   consent-declaration + restricted storage can proceed on the proposed baseline.
@@ -131,7 +131,7 @@ Dependencies flow downward; a phase begins when its entry criteria are met.
   recording + resubmission-required state proceed regardless.
 - **OD-10 (retention periods)** and **OD-11 (who sees what contact data)** block Phase 7 retention jobs and Phase 6
   disclosure rules; restrictive defaults ship until decided.
-- **OD-02 (manual vs automated verification)** defaults to **manual** for MVP; any provider integration is post-MVP.
+- **OD-02 (manual vs automated verification) — RESOLVED 2026-10-22:** **manual administrator review** for MVP; no automated/biometric/external-provider/government claims; any verification-service integration is post-MVP and needs a new decision.
 - **OD-12 (suspension effects on existing bookings)** blocks Phase 5/6 edge-case copy; new-booking block is mandatory regardless.
 
 Unresolved decisions at launch require explicit documented deferral with restrictive defaults — see `09-owner-decisions.md`.

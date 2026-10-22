@@ -1,6 +1,6 @@
 # TECHFIX.NG — User Flows & Customer/Artisan Journeys
 
-**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Version:** 2.1 (OD-01 recorded as owner-resolved 2026-10-22) · **Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
 
 ---
 
@@ -81,7 +81,7 @@ session expiry (re-auth, draft preserved).
 Step  1. CREATE ACCOUNT ── register as artisan; verify email [PROPOSED]
 Step  2. COMPLETE PROFILE ── trade, experience, bio draft, phone, state/LGA,
          service areas (saved as private DRAFT — never public)
-Step  3. SUBMIT IDENTITY DOCUMENT ── choose doc type (owner-approved list, OD-01),
+Step  3. SUBMIT IDENTITY DOCUMENT ── choose doc type (owner-approved list — OD-01 resolved 2026-10-22),
          upload file (allowlist + 5 MB [PROPOSED]), enter minimal fields;
          → identityVerificationStatus = pending_review
 Step  4. ADDITIONAL VERIFICATION ── portfolio photos (≥3 [PROPOSED]),

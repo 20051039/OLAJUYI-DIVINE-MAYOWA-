@@ -4,7 +4,7 @@ Product requirements, MVP roadmap, architecture, data design, user flows, securi
 test plan, backlog, and owner-decision register for **TechFix.ng**, a Nigerian artisan
 directory and booking marketplace.
 
-> **Status: DRAFT v2.1 (2026-10-21)** — pending owner review and approval. v2.1 adds PRD §1.4 marketplace/design references + backlog story FND-5; no business-policy changes.
+> **Status: DRAFT v2.2 (2026-10-22)** — pending owner review and approval. v2.2 records owner approval of OD-01 (accepted ID types) and OD-02 (manual administrator review); OD-03…OD-12 remain open.
 > **No application code is to be written until these documents are reviewed and approved.**
 
 ## Document index
@@ -19,7 +19,7 @@ directory and booking marketplace.
 | `docs/06-security-privacy-plan.md` | Threat model, rules strategies, access control, retention schedule, NDPA confirmation questions |
 | `docs/07-test-plan.md` | 16 required acceptance tests with expected results + supporting suites |
 | `docs/08-implementation-backlog.md` | 13 epics / ~50 stories with acceptance criteria, dependencies, Definition of Done |
-| `docs/09-owner-decisions.md` | 12 unresolved owner decisions (OD-01…OD-12) — no invented answers |
+| `docs/09-owner-decisions.md` | Owner decisions: OD-01 + OD-02 resolved 2026-10-22; OD-03…OD-12 open — no invented answers |
 | `docs/10-revision-summary.md` | Summary of changes, conflicts identified, remaining decisions, next steps |
 
 ## Preserved business rules

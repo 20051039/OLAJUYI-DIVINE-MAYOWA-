@@ -1,9 +1,10 @@
 # TECHFIX.NG — Product Requirements Document (PRD)
 
-**Version:** 2.1 (v2.0 + §1.4 marketplace & design references)
-**Date:** 2026-10-21
-**Changelog (2.1):** Added §1.4 (Worker.NG functional reference, HopeRise visual inspiration) + synthetic-content
-guardrail. No business-policy changes; all [OWNER DECISION] items remain unresolved.
+**Version:** 2.2 (v2.1 + OD-01/OD-02 recorded as owner-resolved)
+**Date:** 2026-10-22
+**Changelog (2.2):** OD-01 resolved (4 accepted ID types); OD-02 resolved (manual administrator review for MVP;
+no automated/biometric/external-provider/government verification claims). Identity-review requirements and wording
+aligned; OD-03…OD-12 remain open. (2.1 added §1.4 marketplace/design references.)
 **Status:** DRAFT — pending owner review and approval. **No application code is to be written until these documents are reviewed and approved.**
 **Related documents:**
 
@@ -12,7 +13,7 @@ guardrail. No business-policy changes; all [OWNER DECISION] items remain unresol
 - `docs/04-database-schema.md` — Firestore data model & Cloud Storage layout
 - `docs/05-user-flows.md` — customer, artisan, and administrator journeys
 - `docs/06-security-privacy-plan.md` — threat model, rules strategy, retention
-- `docs/07-test-plan.md` — acceptance tests incl. the 16 required tests
+- `docs/07-test-plan.md` — acceptance tests incl. the 16 required tests + T-17/T-18 (OD-02)
 - `docs/08-implementation-backlog.md` — epics, stories, acceptance criteria, DoD
 - `docs/09-owner-decisions.md` — unresolved decisions requiring owner input
 - `docs/10-revision-summary.md` — summary of changes, conflicts, remaining decisions
@@ -57,7 +58,7 @@ local artisans (e.g., electricians, plumbers, carpenters, tailors, mechanics, pa
 | BR-2 | **Mandatory administrator approval**: no artisan profile is publicly visible without admin approval. |
 | BR-3 | **No customer booking without authentication**: customers must register and log in before submitting a booking. |
 | BR-4 | Public browsing of approved artisan profiles requires no account. |
-| BR-5 | Uploading a document is **not** proof of genuineness; verification requires authorized human review unless an approved verification service is integrated (none is integrated in MVP). |
+| BR-5 | Uploading a document is **not** proof of genuineness; MVP verification is **manual administrator review** (OD-02 resolved 2026-10-22) — never presented as automated, biometric, or government-database validation. |
 | BR-6 | No artisan is presented as certified/licensed/verified beyond what has actually been checked. |
 | BR-7 | Guarantors are **not** automatically assumed legally liable for an artisan's conduct or debts. |
 
@@ -197,32 +198,34 @@ Supporting rules:
   cannot proceed past step 3 without a submission that passes file validation.
 - **FR-IDV-2:** Provide a **secure identity-document upload interface**: authenticated session only,
   direct-to-private-storage upload with short-lived credentials/URLs, progress + error states, no public URL.
-- **FR-IDV-3:** Permitted file types **[PROPOSED, pending file-policy confirmation as part of OD-01]**:
+- **FR-IDV-3:** Permitted file types **[PROPOSED engineering constraints — not decided policy]**:
   `image/jpeg`, `image/png`, `application/pdf` only. Maximum file size **[PROPOSED]**: 5 MB per file.
   Validation: MIME sniffing (magic bytes) server-side, extension allowlist, size cap, malware posture per
   `docs/06-security-privacy-plan.md`. Upload error handling: type/size/network/expired-session errors with
   retry guidance; rejected files are never stored in public locations.
-- **FR-IDV-4:** Recommended identity-document options for the Nigerian market **[PROPOSED — final accepted
-  document types require owner approval (OD-01)]**:
+- **FR-IDV-4:** **Approved identity-document types (OD-01 — RESOLVED 2026-10-22):**
   1. National Identification Number (NIN) slip / NIN card issued by NIMC;
   2. Voter's card (PVC) issued by INEC;
   3. Valid Nigerian driver's licence (FRSC);
   4. Nigerian international passport (NIS).
-  The UI presents whatever set the owner approves — no other documents are accepted.
+  The UI presents exactly this set — no other documents are accepted.
 - **FR-IDV-5:** Collect **only** the personal information necessary for the approved verification process:
   document type, document reference/number (stored privately, never on public profiles), full name as on
   document, expiry where applicable, and the file itself. No additional fields without approval.
-- **FR-IDV-6:** Record the document's verification status **separately** from payment and account-approval
-  status: `identityVerificationStatus ∈ {not_submitted, pending_review, verified, rejected, resubmission_required}`.
-- **FR-IDV-7:** Authorized administrators review submissions and record a verification decision with notes
-  and timestamp (audit-logged).
+- **FR-IDV-6:** Record the document's verification status **separately** from payment status, supporting-evidence
+  status, guarantor status, overall account-approval status, and suspension status:
+  `identityVerificationStatus ∈ {not_submitted, pending_review, verified, rejected, resubmission_required}`.
+- **FR-IDV-7:** Authorized administrators **manually** review submissions (OD-02 — RESOLVED 2026-10-22: the MVP uses
+  manual administrator review) and record a verification decision with reviewer identity, timestamp, outcome, and
+  reason (audit-logged).
 - **FR-IDV-8:** Identity documents and identity numbers are **never** exposed on public artisan profiles,
   in public APIs, or to other artisans/customers.
 - **FR-IDV-9:** Artisans cannot approve their own documents (status transitions to `verified`/`rejected`
   are admin-only, server-enforced).
-- **FR-IDV-10:** The product must not claim automated identity verification exists unless an actual,
-  approved verification service is integrated. MVP assumes **manual admin review only**.
-  Whether verification stays manual or uses an external provider is **[OWNER DECISION: OD-02]**.
+- **FR-IDV-10:** The MVP uses **manual administrator review only** (OD-02 — RESOLVED 2026-10-22). The product must
+  **never** claim automated, biometric, external-provider, or official government identity verification, and must never
+  present manual review as proof of government-database validity or biometric identity. Any future
+  verification-service integration requires a new owner decision and is post-MVP.
 
 ### 3.5 Additional artisan verification (NEW)
 
@@ -355,6 +358,9 @@ Any transition that breaks the conjunction must remove the artisan from public r
 ## 6. Open Issues & Assumptions
 
 - All policy questions are consolidated in `docs/09-owner-decisions.md` — this PRD invents none of the answers.
+- OD-01 and OD-02 are **resolved** (2026-10-22): accepted ID types are fixed (§3.4 FR-IDV-4); the MVP uses manual
+  administrator review with no automated/biometric/external-provider/government verification claims (FR-IDV-10).
+  OD-03…OD-12 remain open.
 - Stack assumption **[PROPOSED]**: Firebase (Auth, Firestore, Cloud Storage, Cloud Functions, Hosting) +
   Paystack/Flutterwave — see `docs/03-architecture.md`. Owner confirms provider choice (OD-07).
 - Nigerian data-protection obligations (e.g. NDPA 2023 / NDPC guidance) must be confirmed against current

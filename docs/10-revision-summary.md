@@ -1,9 +1,13 @@
-# TECHFIX.NG — Revision Summary (v2.0): Changes, Conflicts & Remaining Decisions
+# TECHFIX.NG — Revision Summary (v2.2): Changes, Conflicts & Remaining Decisions
 
-**Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
+**Addendum (v2.2):** OD-01 resolved (accepted ID types: NIN slip/card, voter's card, driver's licence, international
+passport) and OD-02 resolved (manual administrator review for MVP; no automated/biometric/external-provider/government
+verification claims). PRD, architecture, schema, security plan, test plan (added T-17/T-18), and backlog (added IDV-6)
+aligned; OD-03…OD-12 remain open with no invented policies.
 **Addendum (v2.1):** PRD gained §1.4 (Worker.NG functional reference + HopeRise visual inspiration, with guardrails:
 no copied branding/assets, no unverified claims, no invented testimonials/records/credentials) and the backlog gained
-FND-5 (reference study + original design tokens). No business policies were decided; OD-01…OD-12 remain unresolved.
+FND-5 (reference study + original design tokens). No business policies were decided at that time.
 **Instruction honored:** documentation updated; **no application code written.**
 
 ---
@@ -52,16 +56,18 @@ are policy/sequencing tensions requiring owner judgment, not inconsistencies to 
 
 ## 3. Remaining Owner Decisions (see `09-owner-decisions.md`)
 
-OD-01 accepted ID documents · OD-02 manual vs provider verification · OD-03 per-trade evidence mandates ·
-OD-04 guarantor eligibility/extras/agreement · OD-05 consent recording + independent confirmation ·
-OD-06 guarantor ID/declaration · OD-07 payment provider + extra fees · OD-08 rejection/resubmission/appeal ·
-OD-09 refunds · OD-10 retention periods + request SLA · OD-11 access matrix + disclosure rules · OD-12 suspension
-effects on existing bookings — plus qualified legal review of consent/declaration/privacy texts and a
+**Resolved 2026-10-22:** OD-01 (accepted ID types) · OD-02 (manual administrator review; no
+automated/biometric/external-provider/government claims).
+**Still open:** OD-03 per-trade evidence mandates · OD-04 guarantor eligibility/extras/agreement ·
+OD-05 consent recording + independent confirmation · OD-06 guarantor ID/declaration ·
+OD-07 payment provider + extra fees · OD-08 rejection/resubmission/appeal · OD-09 refunds ·
+OD-10 retention periods + request SLA · OD-11 access matrix + disclosure rules · OD-12 suspension effects on
+existing bookings — plus qualified legal review of consent/declaration/privacy texts and a
 Nigerian data-protection confirmation memo (Security §9) before production launch.
 
 ## 4. Recommended Next Steps
 
-1. Owner reviews this document set and resolves/defers OD-01…OD-12 in a Phase 0 workshop (FND-4).
+1. Owner reviews this document set and resolves/defers the remaining OD-03…OD-12 in a Phase 0 workshop (FND-4).
 2. Engage qualified Nigerian counsel/DPO advisor on Security §9 questions and legal-review gates (SEC-6/7).
 3. Confirm payment provider (OD-07) and stand up sandbox.
 4. Approve documents in writing → then, and only then, begin Phase 1 implementation per the backlog.

@@ -1,10 +1,11 @@
 # TECHFIX.NG — Test Plan & Acceptance Tests
 
-**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Version:** 2.1 (OD-02 recorded as owner-resolved 2026-10-22; added T-17/T-18) · **Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
 
 Test layers: **rules-emulator unit tests** (Firestore/Storage) · **Function integration tests** (authz, transitions,
-webhooks) · **end-to-end acceptance tests** (the 16 required tests below + supporting suite) · **privacy-leak scans**
-(public surfaces) · **abuse tests** (uploads, URL expiry, rate limits). All 16 required tests are launch-gating.
+webhooks) · **end-to-end acceptance tests** (the 16 required tests below, plus OD-02 resolution tests T-17/T-18,
++ supporting suite) · **privacy-leak scans** (public surfaces) · **abuse tests** (uploads, URL expiry, rate limits).
+All 16 required tests plus T-17/T-18 are launch-gating.
 
 ---
 
@@ -109,7 +110,8 @@ record an approve and (on a second fixture) a reject/request-info decision with 
 **Expected result:** ✅ Private material renders only in the authorized, expiring viewer; each file access is
 audit-logged; decisions lacking mandatory reason/notes are rejected; valid decisions update exactly the scoped
 status, write a review record + audit entry, recompute publication, and notify the artisan with guidance text only
-(no internal notes). Stale-session decision attempts require re-authentication.
+(no internal notes). The stored review record contains reviewer, timestamp, outcome, and reason, mirrored to the
+audit log. Stale-session decision attempts require re-authentication.
 
 ### T-16 — Applicant requests correction or deletion of personal information
 **Steps:** As an artisan applicant (and separately a customer), submit a correction request and a deletion request;
@@ -118,6 +120,24 @@ admin processes each per the retention schedule.
 deletions remove in-scope data (files + metadata) subject to retention obligations, with a deletion certificate in
 the audit log; where retention lawfully requires keeping data, the outcome notice states the basis and the scheduled
 deletion date. No silent drops: every request reaches a communicated outcome.
+
+### T-17 — Manual identity review: approve and reject paths with audit records (OD-02)
+**Steps:** Fixture two artisans at `identityVerificationStatus=pending_review` with valid OD-01-listed documents.
+As a verification-authorized admin with a fresh session: (a) approve one's identity scope; (b) reject the other's
+with reason/notes; (c) attempt an artisan self-decision and a stale-session decision as negative controls.
+**Expected result:** ✅ Approval moves identity to `verified` and rejection to `rejected`, each with a review record
+holding reviewer UID, timestamp, outcome, and reason, mirrored to append-only audit logs; neither decision publishes
+the artisan on its own (the publication gate still requires payment verified + additional approved + guarantor
+verified + final approval + not suspended); artisan notifications state a manual-review outcome with guidance only;
+self-decision and stale-session attempts are rejected and logged.
+
+### T-18 — No prohibited identity-verification claims in product surfaces (OD-02)
+**Steps:** Audit all user-facing copy, notifications, badges, and API responses touching identity verification for
+claims of automated, biometric, external-provider, or official government verification — or language presenting manual
+review as proof of government-database validity or biometric identity.
+**Expected result:** ✅ Zero prohibited claims found; verification is described only as manual administrator review
+with honest scope (e.g. "reviewed by our team"); the wording audit is repeatable in CI (copy/pattern scan) and
+re-run before launch.
 
 ---
 
@@ -147,5 +167,5 @@ deletion date. No silent drops: every request reaches a communicated outcome.
 ## 4. Entry / Exit Criteria
 
 - **Entry (per phase):** fixtures + rules tests written before the feature (groomed in `08-implementation-backlog.md`).
-- **Exit (launch):** all 16 tests pass on staging + production-parity check; privacy-leak scan clean; no unresolved
-  launch-gating owner decision without documented deferral (see `09-owner-decisions.md`).
+- **Exit (launch):** all 16 required tests plus T-17/T-18 pass on staging + production-parity check; privacy-leak
+  scan clean; no unresolved launch-gating owner decision without documented deferral (see `09-owner-decisions.md`).

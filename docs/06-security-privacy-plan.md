@@ -1,6 +1,6 @@
 # TECHFIX.NG — Security, Privacy & Data-Retention Plan
 
-**Version:** 2.0 (Revised) · **Date:** 2026-10-21 · **Status:** DRAFT — pending owner review and approval.
+**Version:** 2.1 (OD-02 recorded as owner-resolved 2026-10-22) · **Date:** 2026-10-22 · **Status:** DRAFT — pending owner review and approval.
 
 ---
 
@@ -57,8 +57,10 @@
 2. Storage rules: size cap, content-type allowlist, path binding.
 3. Function trigger on finalize: magic-byte sniffing, re-measure size, compute SHA-256, quarantine on mismatch,
    record metadata; delete + notify on failure with safe error text.
-4. Admin reviewer guidance: view in sandboxed preview; never download to unmanaged devices **[PROPOSED policy]**;
-   report suspected forgeries via reason codes (no automated genuineness verdict — BR-5).
+4. Admin reviewer guidance (manual review — OD-02 resolved 2026-10-22): verification-role reviewers only; view in
+   sandboxed preview; never download to unmanaged devices **[PROPOSED policy]**; report suspected forgeries via
+   reason codes. Reviewers record a human decision only — never described as automated, biometric,
+   external-provider, or government-database validation (PRD FR-IDV-10; BR-5).
 
 ## 6. Access Control & Administration
 
@@ -98,8 +100,13 @@ suspension, retention actions). MVP may start with verifier+superadmin only.
 - **Data-subject rights:** correction/deletion request flow (user flows §2.4), honored subject to retention
   obligations; response SLA **[OWNER DECISION — OD-10]**.
 - **No liability language** about guarantors anywhere in product copy or records (FR-GUA-5) until legal review passes.
+- **Honest verification wording (OD-02 resolved 2026-10-22):** no product copy, notification, badge, or record may
+  claim automated, biometric, external-provider, or official government identity verification; manual review is never
+  presented as proof of government-database validity or biometric identity. Wording is audited by T-18.
+- **Safe audit logging:** review audit records capture reviewer, timestamp, outcome, and reason — never file bytes,
+  full identity numbers, or guarantor contact details.
 
-## 8. Retention & Secure Deletion (schedule durations OD-10; mechanism mandatory)
+## 8. Retention & Secure Deletion (durations UNRESOLVED — OD-10; mechanism mandatory)
 
 | Data class | Proposed retention (all [PROPOSED] — OD-10 sets final) | Deletion method |
 |---|---|---|
